@@ -29,13 +29,16 @@ export const userLogin = async (req: Request, res: Response) => {
         .json({ message: "Invalid username or password" });
       return;
     }
+
     const refreshTokenData = await getUserRefreshToken(
       Number(userData[0].userID)
     );
 
     // Check if refresh token exists
     if (refreshTokenData === null) {
-      const refreshToken = await generateRefreshToken(userData);
+      const refreshToken = await generateRefreshToken(
+        serializeBigInt(userData)
+      );
 
       // Create refresh token in database
       const tokenData = await createUserRefreshToken(
@@ -119,7 +122,6 @@ export const userLogin = async (req: Request, res: Response) => {
           role: data[0].role,
         })
       );
-
       return;
     }
 
