@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model chapters {
+  id                      BigInt                    @id @default(autoincrement())
+  topic_id                BigInt
+  parent_chapter_id       BigInt?
+  chapter_number          String                    @db.VarChar(55)
+  title                   String                    @db.Text
+  sub_title               String                    @db.Text
+  created_at              DateTime?                 @default(now()) @db.Timestamp(0)
+  topics                  topics                    @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_1")
+  chapters                chapters?                 @relation("chaptersTochapters", fields: [parent_chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_2")
+  SubChapters             chapters[]                @relation("chaptersTochapters")
+  FileChapter             files?
+  user_completed_chapters user_completed_chapters[]
+
+  @@index([parent_chapter_id], map: "idx_chapters_parent_id")
+  @@index([topic_id], map: "idx_chapters_topic_id")
+}
+
+model files {
+  id         BigInt   @id @default(autoincrement())
+  chapter_id BigInt   @unique(map: "chapter_id_UNIQUE")
+  file_name  String   @db.VarChar(255)
+  file_type  String   @db.VarChar(255)
+  chapters   chapters @relation(fields: [chapter_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "chapterFile")
+
+  @@index([chapter_id], map: "idx_files_chapter_id")
+}
+
+model multiple_choice_options {
+  id                           BigInt                         @id @default(autoincrement())
+  objective_question_id        BigInt
+  option_text                  String                         @db.VarChar(255)
+  objective_questions          objective_questions            @relation(fields: [objective_question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "multiple_choice_options_ibfk_1")
+  user_multiple_choice_answers user_multiple_choice_answers[]
+
+  @@index([objective_question_id], map: "idx_multiple_choice_options_question_id")
+}
+
+model objective_questions {
+  id                           BigInt                            @id @default(autoincrement())
+  quiz_id                      BigInt
+  question                     String                            @db.Text
+  question_type                objective_questions_question_type
+  correct_answer               String?                           @db.VarChar(255)
+  multiple_choice_options      multiple_choice_options[]
+  quiz                         quiz                              @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "objective_questions_ibfk_1")
+  user_identification_answers  user_identification_answers[]
+  user_multiple_choice_answers user_multiple_choice_answers[]
+
+  @@index([quiz_id], map: "idx_objective_questions_quiz_id")
+}
+
+model quiz {
+  id                  BigInt                @id @default(autoincrement())
+  topic_id            BigInt
+  title               String                @db.VarChar(255)
+  quiz_type           quiz_quiz_type        @default(objective)
+  max_attempts        Int?                  @default(3)
+  created_at          DateTime?             @default(now()) @db.Timestamp(0)
+  objective_questions objective_questions[]
+  topics              topics                @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "quiz_ibfk_1")
+  user_quiz_attempts  user_quiz_attempts[]
+
+  @@index([topic_id], map: "idx_quizzes_topic_id")
+}
+
+model topics {
+  id          BigInt     @id @default(autoincrement())
+  topicTitle  String?    @unique(map: "name") @db.VarChar(255)
+  description String?    @db.Text
+  chapters    chapters[]
+  quiz        quiz[]
+}
+
+model user_completed_chapters {
+  id                BigInt                                     @id @default(autoincrement())
+  user_id           BigInt
+  chapter_id        BigInt
+  completion_status user_completed_chapters_completion_status? @default(not_started)
+  completed_at      DateTime?                                  @default(now()) @db.Timestamp(0)
+  users             users                                      @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_1")
+  chapters          chapters                                   @relation(fields: [chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_2")
+
+  @@index([chapter_id], map: "idx_user_completed_lessons_chapter_id")
+  @@index([user_id], map: "idx_user_completed_lessons_user_id")
+}
+
+model user_identification_answers {
+  id                  BigInt              @id @default(autoincrement())
+  attempt_id          BigInt
+  question_id         BigInt
+  user_id             BigInt
+  user_answer         String              @db.Text
+  is_correct          Boolean?
+  user_quiz_attempts  user_quiz_attempts  @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_1")
+  objective_questions objective_questions @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_2")
+  users               users               @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_3")
+
+  @@index([attempt_id], map: "idx_user_identification_answers_attempt_id")
+  @@index([question_id], map: "idx_user_identification_answers_question_id")
+  @@index([user_id], map: "idx_user_identification_answers_user_id")
+}
+
+model user_multiple_choice_answers {
+  id                      BigInt                   @id @default(autoincrement())
+  attempt_id              BigInt
+  question_id             BigInt
+  user_id                 BigInt
+  user_selected_option_id BigInt?
+  is_correct              Boolean?
+  user_quiz_attempts      user_quiz_attempts       @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_1")
+  objective_questions     objective_questions      @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_2")
+  multiple_choice_options multiple_choice_options? @relation(fields: [user_selected_option_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_3")
+  users                   users                    @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_4")
+
+  @@index([attempt_id], map: "idx_user_multiple_choice_answers_attempt_id")
+  @@index([question_id], map: "idx_user_multiple_choice_answers_question_id")
+  @@index([user_selected_option_id], map: "idx_user_multiple_choice_answers_selected_option_id")
+  @@index([user_id], map: "idx_user_multiple_choice_answers_user_id")
+}
+
+model user_progress {
+  id                BigInt @id @default(autoincrement())
+  user_id           BigInt
+  completed_lessons Int?   @default(0)
+  completed_quizzes Int?   @default(0)
+  users             users  @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model user_quiz_attempts {
+  id                           BigInt                         @id @default(autoincrement())
+  user_id                      BigInt
+  quiz_id                      BigInt
+  attempt_count                Int?                           @default(0)
+  score                        Int?                           @default(0)
+  time_taken                   DateTime?                      @db.DateTime(0)
+  completed_at                 DateTime?                      @default(now()) @db.Timestamp(0)
+  start_time                   DateTime?                      @db.Timestamp(0)
+  end_time                     DateTime?                      @db.Timestamp(0)
+  user_identification_answers  user_identification_answers[]
+  user_multiple_choice_answers user_multiple_choice_answers[]
+  users                        users                          @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_1")
+  quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_2")
+
+  @@index([quiz_id], map: "idx_user_quiz_attempts_quiz_id")
+  @@index([user_id], map: "idx_user_quiz_attempts_user_id")
+}
+
+model user_refresh_tokens {
+  id         BigInt    @id @default(autoincrement())
+  user_id    BigInt
+  token      String    @db.Text
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+  expires_at DateTime  @db.Timestamp(0)
+  users      users     @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_refresh_tokens_ibfk_1")
+
+  @@index([user_id], map: "user_id")
+}
+
+model users {
+  id                           BigInt                         @id @default(autoincrement())
+  userID                       BigInt                         @unique(map: "userID")
+  username                     String                         @db.VarChar(255)
+  email                        String                         @unique(map: "email") @db.VarChar(255)
+  password                     String                         @db.VarChar(255)
+  created_at                   DateTime?                      @default(now()) @db.Timestamp(0)
+  role                         users_role                     @default(user)
+  user_completed_chapters      user_completed_chapters[]
+  user_identification_answers  user_identification_answers[]
+  user_multiple_choice_answers user_multiple_choice_answers[]
+  user_progress                user_progress[]
+  user_quiz_attempts           user_quiz_attempts[]
+  user_refresh_tokens          user_refresh_tokens[]
+}
+
+enum quiz_quiz_type {
+  objective
+}
+
+enum objective_questions_question_type {
+  multiple_choice
+  identification
+}
+
+enum user_completed_chapters_completion_status {
+  not_started
+  in_progress
+  completed
+}
+
+enum users_role {
+  admin
+  user
+}
