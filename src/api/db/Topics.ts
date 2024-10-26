@@ -131,6 +131,34 @@ export const createTopic = async (
   });
 };
 
+export const updateTopic = async (
+  topicId: number,
+  topicTitle: string,
+  description: string
+): Promise<topics> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const topic = await prisma.topics.update({
+        where: {
+          id: topicId,
+        },
+        data: {
+          topicTitle: topicTitle,
+          description: description,
+        },
+      });
+
+      if (topic) {
+        resolve(topic);
+      } else {
+        reject({ error: "Failed to update topic." });
+      }
+    } catch (error) {
+      reject({ error: error });
+    }
+  });
+};
+
 export const checkTopicExists = async (topicId: number): Promise<boolean> => {
   return new Promise(async (resolve, reject) => {
     try {

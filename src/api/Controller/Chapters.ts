@@ -70,7 +70,7 @@ export const getChapterFilesByChapterId = async (
       Key: chapterFiles.file_name,
     };
     const command = new GetObjectCommand(getObjectParams);
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    const url = await getSignedUrl(s3, command);
 
     if (!chapterFiles) {
       res.sendStatus(404);
@@ -162,7 +162,7 @@ export const updateChapter = async (req: Request, res: Response) => {
   const topicId = req.query.topicId;
   const file = req.file;
   const chapterId = req.params.chapterId;
-  const { title, subtitle } = req.body;
+  const { chapterTitle, chapterDescription } = req.body;
 
   if (
     !topicId ||
@@ -177,10 +177,10 @@ export const updateChapter = async (req: Request, res: Response) => {
   }
 
   if (
-    !subtitle ||
-    !title ||
-    typeof subtitle !== "string" ||
-    typeof title !== "string"
+    !chapterDescription ||
+    !chapterTitle ||
+    typeof chapterDescription !== "string" ||
+    typeof chapterTitle !== "string"
   ) {
     res.sendStatus(400);
     return;
@@ -197,7 +197,11 @@ export const updateChapter = async (req: Request, res: Response) => {
 
     const result = await Promise.all([
       getChapterPDFByChapterId(Number(chapterId)),
-      updateChapterContentByChapterId(Number(chapterId), title, subtitle),
+      updateChapterContentByChapterId(
+        Number(chapterId),
+        chapterTitle,
+        chapterDescription
+      ),
       updateChapterPDFByChapterId(Number(chapterId), {
         filename: filename,
         mimetype: file.mimetype,

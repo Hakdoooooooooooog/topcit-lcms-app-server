@@ -5,6 +5,7 @@ import {
   TopicsWithAllChapters,
   TopicWithChapters,
   TopicWithId,
+  UpdateTopic,
 } from "../Controller/Topics";
 import { upload } from "../services/multer";
 
@@ -21,6 +22,6 @@ export default (router: Router) => {
   router.get("/topics/chapters/:topic_id", TopicWithChapters);
 
   router.post("/admin/topic/create", upload.none(), CreateTopic); // Create a new topic
-  router.put("/admin/topic/update/:topic_id"); // Update a topic
+  router.put("/admin/topic/update/:topic_id", UpdateTopic); // Update a topic
   router.delete("/admin/topic/delete/:topic_id"); // Delete a topic
 };

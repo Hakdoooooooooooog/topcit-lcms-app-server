@@ -57,10 +57,11 @@ export const uploadFile =
     upload.single(file)(req, res, (err) => {
       if (err instanceof Multer.MulterError) {
         res.status(400).send({ message: err.message });
-      }
-      if (err instanceof Error) {
+        return;
+      } else if (err instanceof Error) {
         res.status(400).send({ message: err.message });
+        return;
       }
-      next(err);
+      next();
     });
   };

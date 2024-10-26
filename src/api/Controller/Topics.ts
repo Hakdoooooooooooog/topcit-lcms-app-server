@@ -6,6 +6,7 @@ import {
   getAllTopicsWithChapters,
   checkTopicExists,
   createTopic,
+  updateTopic,
 } from "../db/Topics";
 import { serializeBigInt } from "../services";
 
@@ -85,6 +86,33 @@ export const CreateTopic = async (req: Request, res: Response) => {
       });
       return;
     }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const UpdateTopic = async (req: Request, res: Response) => {
+  const topic_id = req.params.topic_id;
+  const { topicData } = req.body;
+
+  if (!topic_id || !topicData.topicTitle || !topicData.description) {
+    res.sendStatus(400);
+    return;
+  }
+
+  try {
+    const topic = await updateTopic(
+      Number(topic_id),
+      topicData.topicTitle,
+      topicData.description
+    );
+
+    if (!topic) {
+      res.status(404).json({ message: "Topic not found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Topic updated" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
