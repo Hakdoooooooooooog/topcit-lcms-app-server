@@ -19,6 +19,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3 } from "../services/s3Client";
 import { chapters, files } from "@prisma/client";
+import { compress } from "compress-pdf";
 
 const { BUCKET_NAME } = process.env;
 
@@ -114,14 +115,6 @@ export const CreateChapter = async (req: Request, res: Response) => {
     const filename =
       file.fieldname + "-" + Date.now() + path.extname(file.originalname);
 
-    const params: PutObjectCommandInput = {
-      Bucket: BUCKET_NAME,
-      Key: filename,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
-
-    const command = new PutObjectCommand(params);
     const result = await Promise.all([
       createChapter(
         Number(topicId),
@@ -133,13 +126,23 @@ export const CreateChapter = async (req: Request, res: Response) => {
           mimetype: file.mimetype,
         }
       ),
-      s3.send(command),
+      await compress(file.buffer),
     ]).then((res) => {
       return {
-        chapter: serializeBigInt(res[1]),
-        s3: res[0],
+        chapter: serializeBigInt(res[0]),
+        compressedFile: res[1],
       };
     });
+
+    const params: PutObjectCommandInput = {
+      Bucket: BUCKET_NAME,
+      Key: filename,
+      Body: result.compressedFile,
+      ContentType: file.mimetype,
+    };
+
+    const command = new PutObjectCommand(params);
+    s3.send(command);
 
     if (!result.chapter) {
       res.sendStatus(404);
@@ -202,11 +205,13 @@ export const updateChapter = async (req: Request, res: Response) => {
         filename: filename,
         mimetype: file.mimetype,
       }),
+      compress(file.buffer),
     ]).then((res) => {
       return {
         chapterPreviousPDF: serializeBigInt(res[0]) as files,
         content: serializeBigInt(res[1]) as chapters,
         file: serializeBigInt(res[2]) as files,
+        compressedFileBuffer: res[3],
       };
     });
 
@@ -225,7 +230,7 @@ export const updateChapter = async (req: Request, res: Response) => {
       const params2: PutObjectCommandInput = {
         Bucket: BUCKET_NAME,
         Key: filename,
-        Body: file.buffer,
+        Body: result.compressedFileBuffer,
         ContentType: file.mimetype,
       };
       const command2 = new PutObjectCommand(params2);
