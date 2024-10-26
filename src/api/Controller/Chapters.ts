@@ -65,19 +65,15 @@ export const getChapterFilesByChapterId = async (
   try {
     const chapterFiles = await getChapterPDFByChapterId(Number(chapter_id));
 
-    const getObjectParams: GetObjectCommandInput = {
-      Bucket: BUCKET_NAME,
-      Key: chapterFiles.file_name,
-    };
-    const command = new GetObjectCommand(getObjectParams);
-    const url = await getSignedUrl(s3, command);
+    const PDFUrl =
+      "https://d3bqe2jvukr86q.cloudfront.net/" + chapterFiles.file_name;
 
     if (!chapterFiles) {
       res.sendStatus(404);
       return;
     }
 
-    res.status(200).json({ url: url });
+    res.status(200).json({ url: PDFUrl });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
