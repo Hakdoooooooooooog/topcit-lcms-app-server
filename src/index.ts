@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import "dotenv/config";
 import cors, { CorsOptions } from "cors";
 import serverless from "serverless-http";
-import router from "../src/api/router";
+import router from "./api/router";
 
 const app = express();
 const corsOptions: CorsOptions = {
@@ -28,7 +28,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // app.use("/", router());
 
 // Routes (API) for Netlify Functions
-app.use("/.netlify/functions/", router());
+app.use("/", router());
 
 // Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
