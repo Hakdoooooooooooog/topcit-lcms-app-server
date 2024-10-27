@@ -10,17 +10,17 @@ import { validateUserToken } from "../middleware";
 import { EditProfileSchema } from "../schema/User";
 
 export default (router: Router) => {
-  router.get("/test", (req, res) => {
+  router.get("/api/test", (req, res) => {
     res.send("Hello World!");
   });
 
-  router.get("/user/profile", validateUserToken, userData);
+  router.get("/api/user/profile", validateUserToken, userData);
   router.post("/user/logout", userLogout);
   router.put(
-    "/user/updateData",
+    "/api/user/updateData",
     validateData({ schema: EditProfileSchema }),
     validateUserToken,
     updateUserData
   );
-  router.put("/user/refresh", userRefreshTokenAccess);
+  router.put("/api/user/refresh", userRefreshTokenAccess);
 };

@@ -14,19 +14,19 @@ import { uploadFile } from "../services/multer";
 export default (router: Router) => {
   // Chapters with files and subchapters
   router.get(
-    "/chapters/subchapters/:parent_chapter_id",
+    "/api/chapters/subchapters/:parent_chapter_id",
     getSubChaptersByChapterId
   );
-  router.get("/chapters/files/:chapter_id", getChapterFilesByChapterId);
+  router.get("/api/chapters/files/:chapter_id", getChapterFilesByChapterId);
 
   // Chapters
   router.post(
-    "/admin/chapter/create",
+    "/api/admin/chapter/create",
     uploadFile("chapterFile"),
     CreateChapter
   ); // Todo: Create a new chapter
   router.put(
-    "/admin/chapter/update/:chapterId",
+    "/api/admin/chapter/update/:chapterId",
     uploadFile("chapterFile"),
     updateChapter
   ); // Update a chapter with a file

@@ -15,13 +15,13 @@ import { upload } from "../services/multer";
 
 export default (router: Router) => {
   // Topics
-  router.get("/topics", Topics);
-  router.get("/topics/chapters", TopicsWithAllChapters);
+  router.get("/api/topics", Topics);
+  router.get("/api/topics/chapters", TopicsWithAllChapters);
   // Topics with all chapters
-  router.get("/topics/:topic_id", TopicWithId);
-  router.get("/topics/chapters/:topic_id", TopicWithChapters);
+  router.get("/api/topics/:topic_id", TopicWithId);
+  router.get("/api/topics/chapters/:topic_id", TopicWithChapters);
 
-  router.post("/admin/topic/create", upload.none(), CreateTopic); // Create a new topic
-  router.put("/admin/topic/update/:topic_id", UpdateTopic); // Update a topic
-  router.delete("/admin/topic/delete/:topic_id"); // Delete a topic
+  router.post("/api/admin/topic/create", upload.none(), CreateTopic); // Create a new topic
+  router.put("/api/admin/topic/update/:topic_id", UpdateTopic); // Update a topic
+  router.delete("/api/admin/topic/delete/:topic_id"); // Delete a topic
 };

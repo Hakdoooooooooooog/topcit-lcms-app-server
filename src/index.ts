@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
 import cors, { CorsOptions } from "cors";
+import router from "./api/router";
 
 export const app = express();
 const corsOptions: CorsOptions = {
@@ -15,15 +16,15 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-// Route (API) for Express
-// app.use("/", router());
-
 // Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).send("Something broke!");
 });
 
-// Local Server
-// app.listen(process.env.PORT, () => {
-//   console.log(`Server is running on ${process.env.SERVER_URL}`);
-// });
+// Route (API) for Express
+if (process.env.NODE_ENV === "development") {
+  app.use("/", router());
+  app.listen(process.env.PORT, () => {
+    console.log(`Server is running on ${process.env.SERVER_URL}`);
+  });
+}

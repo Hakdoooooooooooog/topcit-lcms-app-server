@@ -4,7 +4,11 @@ import { ChaptersWithSubChaptersWithinTopic } from "../types/topics";
 export const getAllTopics = async (): Promise<topics[]> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const topics = await prisma.topics.findMany();
+      const topics = await prisma.topics.findMany({
+        orderBy: {
+          id: "asc",
+        },
+      });
 
       if (topics) {
         resolve(topics);
