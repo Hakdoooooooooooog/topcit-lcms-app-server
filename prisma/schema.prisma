@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -136,7 +136,7 @@ model user_progress {
   completed_quizzes Int?   @default(0)
   users             users  @relation(fields: [user_id], references: [userID], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
 
-  @@index([user_id], map: "user_id")
+  @@index([user_id], map: "user_progress_user_id_idx")
 }
 
 model user_quiz_attempts {
@@ -145,7 +145,7 @@ model user_quiz_attempts {
   quiz_id                      BigInt
   attempt_count                Int?                           @default(0)
   score                        Int?                           @default(0)
-  time_taken                   DateTime?                      @db.DateTime(0)
+  time_taken                   DateTime?                      @db.Time
   completed_at                 DateTime?                      @default(now()) @db.Timestamp(0)
   start_time                   DateTime?                      @db.Timestamp(0)
   end_time                     DateTime?                      @db.Timestamp(0)
