@@ -1,6 +1,8 @@
 [build]
 functions = "functions"
-[[headers]]
-  for = "/admin/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "https://topcitlcms.netlify.app"
+
+[[redirects]]
+  force = true
+  from = "/*"
+  status = 200
+  to = "/.netlify/functions/api"
