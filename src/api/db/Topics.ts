@@ -90,6 +90,10 @@ export const getAllChaptersWithTopicId = async (
                 },
               },
             },
+
+            orderBy: {
+              chapter_number: "asc",
+            },
           },
         },
       });
