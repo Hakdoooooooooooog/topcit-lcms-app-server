@@ -112,10 +112,9 @@ export const extractUserId = (accessToken: JwtPayload) => {
 
 export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
-    httpOnly: true,
     secure: true,
-    sameSite: "none",
-    domain: "topcit-api.netlify.app",
+    httpOnly: true,
+    domain: "https://topcitlcms.netlify.app/",
     path: "/",
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
   });
