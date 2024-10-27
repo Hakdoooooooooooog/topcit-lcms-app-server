@@ -31,7 +31,7 @@ export const userLogin = async (req: Request, res: Response) => {
     }
 
     const refreshTokenData = await getUserRefreshToken(
-      Number(userData[0].userID)
+      Number(userData[0].userid)
     );
 
     // Check if refresh token exists
@@ -42,7 +42,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Create refresh token in database
       const tokenData = await createUserRefreshToken(
-        Number(userData[0].userID),
+        Number(userData[0].userid),
         refreshToken
       );
 
@@ -53,7 +53,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Generate access token and set cookie
       const accessToken = await generateAuthenticatedToken({
-        userId: Number(userData[0].userID),
+        userId: Number(userData[0].userid),
         role: userData[0].role,
         refreshToken,
       });
@@ -62,7 +62,7 @@ export const userLogin = async (req: Request, res: Response) => {
       res.status(StatusCodes.OK).json(
         serializeBigInt({
           message: "Login successfully",
-          userId: userData[0].userID,
+          userId: userData[0].userid,
           role: userData[0].role,
         })
       );
@@ -76,7 +76,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
     // Generate access token and set cookie
     const accessToken = await generateAuthenticatedToken({
-      userId: Number(userData[0].userID),
+      userId: Number(userData[0].userid),
       role: userData[0].role,
       refreshToken: refreshTokenData.token,
     });
@@ -85,7 +85,7 @@ export const userLogin = async (req: Request, res: Response) => {
     res.status(200).json(
       serializeBigInt({
         message: "Login successfully",
-        userId: userData[0].userID,
+        userId: userData[0].userid,
         role: userData[0].role,
       })
     );
@@ -96,7 +96,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Update refresh token in database
       const tokenData = await updateUserRefreshTokenByUserID(
-        Number(data[0].userID),
+        Number(data[0].userid),
         newRefreshToken
       );
 
@@ -109,7 +109,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Generate access token and set cookie
       const accessToken = await generateAuthenticatedToken({
-        userId: Number(data[0].userID),
+        userId: Number(data[0].userid),
         role: data[0].role,
         refreshToken: newRefreshToken,
       });
@@ -118,7 +118,7 @@ export const userLogin = async (req: Request, res: Response) => {
       res.status(StatusCodes.OK).json(
         serializeBigInt({
           message: "Login successfully",
-          userId: data[0].userID,
+          userId: data[0].userid,
           role: data[0].role,
         })
       );
@@ -193,7 +193,7 @@ export const userData = async (req: Request, res: Response) => {
 
     res.status(StatusCodes.OK).json(
       serializeBigInt({
-        userID: data[0].userID,
+        userID: data[0].userid,
         username: data[0].username,
         email: data[0].email,
       })
@@ -241,7 +241,7 @@ export const userRefreshTokenAccess = async (req: Request, res: Response) => {
 
     if (tokenValidity.message === "Refresh token valid") {
       const newAccessToken = await generateAuthenticatedToken({
-        userId: Number(userData[0].userID),
+        userId: Number(userData[0].userid),
         role: userData[0].role,
         refreshToken: userRefreshToken.token,
       });
