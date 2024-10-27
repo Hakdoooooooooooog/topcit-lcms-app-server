@@ -24,8 +24,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Routes
-app.use("/", router());
+// Routes (API)
+app.use("/.netlify/functions/", router());
+
+// Error Handler
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  res.status(500).send("Something broke!");
+});
+
+app.get("/", (req: Request, res: Response) => {
+  res.send("Hello World!");
+});
 
 // Serverless
 module.exports.handler = serverless(app);

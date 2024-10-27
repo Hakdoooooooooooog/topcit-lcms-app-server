@@ -107,7 +107,8 @@
   },
 
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "functions/index.ts"
   ] /* Include all source files under the src directory. */,
   "exclude": [
     "node_modules",
