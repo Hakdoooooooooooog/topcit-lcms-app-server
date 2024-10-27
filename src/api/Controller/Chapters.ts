@@ -159,10 +159,9 @@ export const CreateChapter = async (req: Request, res: Response) => {
 };
 
 export const updateChapter = async (req: Request, res: Response) => {
-  const topicId = req.query.topicId;
   const file = req.file;
   const chapterId = req.params.chapterId;
-  const { chapterTitle, chapterDescription } = req.body;
+  const { chapterTitle, chapterDescription, topicId } = req.body;
 
   if (
     !topicId ||
