@@ -40,7 +40,7 @@ export async function getUserCredentials(
 export async function getUserById(userID: number): Promise<users[]> {
   return prisma.users.findMany({
     where: {
-      userID: userID,
+      userid: userID,
     },
   });
 }
@@ -126,7 +126,7 @@ export function createUser(user: any): Promise<any> {
     const createUser = await prisma.users.create({
       data: {
         username: username,
-        userID: Number(userID),
+        userid: Number(userID),
         email: email,
         password: hashedPassword,
       },
@@ -154,7 +154,7 @@ export function getUserByEmailorID(
 ): Promise<users[]> {
   return prisma.users.findMany({
     where: {
-      OR: [{ email: email }, { userID: userID }],
+      OR: [{ email: email }, { userid: userID }],
     },
   });
 }
@@ -165,7 +165,7 @@ export function updateUserById(userId: number, user: any): Promise<any> {
   return new Promise(async (resolve, reject) => {
     const updateUser = await prisma.users.update({
       where: {
-        userID: userId,
+        userid: userId,
       },
       data: {
         username: username,

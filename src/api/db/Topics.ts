@@ -115,7 +115,7 @@ export const createTopic = async (
       const topic = await prisma.topics.create({
         data: {
           id: topicNum,
-          topicTitle: topicName,
+          topictitle: topicName,
           description: topicDescription,
         },
       });
@@ -143,7 +143,7 @@ export const updateTopic = async (
           id: topicId,
         },
         data: {
-          topicTitle: topicTitle,
+          topictitle: topicTitle,
           description: description,
         },
       });

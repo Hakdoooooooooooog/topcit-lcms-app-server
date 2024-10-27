@@ -11,8 +11,6 @@ import path from "path";
 import {
   DeleteObjectCommand,
   DeleteObjectCommandInput,
-  GetObjectCommand,
-  GetObjectCommandInput,
   PutObjectCommand,
   PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
