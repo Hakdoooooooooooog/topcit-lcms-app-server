@@ -11,7 +11,7 @@ export default function authentication(router: Router) {
     userLogin
   );
   router.post(
-    "/auth/register",
+    "/api/auth/register",
     validateData({ schema: RegisterSchema }),
     userRegister
   );

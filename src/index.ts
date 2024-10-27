@@ -9,6 +9,7 @@ export const app = express();
 const corsOptions: CorsOptions = {
   origin: process.env.CLIENT_URL,
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
 };
 
 // Middleware
