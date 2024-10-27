@@ -21,7 +21,7 @@ export default (router: Router) => {
   router.get("/topics/:topic_id", TopicWithId);
   router.get("/topics/chapters/:topic_id", TopicWithChapters);
 
-  router.post("/admin/topic/create", upload.none(), CreateTopic); // Create a new topic
-  router.put("/admin/topic/update/:topic_id", UpdateTopic); // Update a topic
+  router.post("/topic/create", upload.none(), CreateTopic); // Create a new topic
+  router.put("/topic/update/:topic_id", UpdateTopic); // Update a topic
   router.delete("/admin/topic/delete/:topic_id"); // Delete a topic
 };
