@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
 import cors, { CorsOptions } from "cors";
+import serverless from "serverless-http";
 import router from "./api/router";
 
 const app = express();
@@ -26,6 +27,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Routes
 app.use("/", router());
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server is running on ${process.env.SERVER_URL}`);
-});
+// Serverless
+module.exports.handler = serverless(app);
+
+// Local Server
+// app.listen(process.env.PORT, () => {
+//   console.log(`Server is running on ${process.env.SERVER_URL}`);
+// });
