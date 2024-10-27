@@ -20,9 +20,13 @@ export default (router: Router) => {
   router.get("/chapters/files/:chapter_id", getChapterFilesByChapterId);
 
   // Chapters
-  router.post("/chapter/create", uploadFile("chapterFile"), CreateChapter); // Todo: Create a new chapter
+  router.post(
+    "/admin/chapter/create",
+    uploadFile("chapterFile"),
+    CreateChapter
+  ); // Todo: Create a new chapter
   router.put(
-    "/chapter/update/:chapterId",
+    "/admin/chapter/update/:chapterId",
     uploadFile("chapterFile"),
     updateChapter
   ); // Update a chapter with a file
