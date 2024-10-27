@@ -114,7 +114,7 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
     secure: true,
     httpOnly: true,
-    domain: "https://topcitlcms.netlify.app/",
+    domain: "topcitlcms.netlify.app",
     path: "/",
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
   });
