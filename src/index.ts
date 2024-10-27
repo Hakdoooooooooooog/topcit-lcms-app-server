@@ -25,9 +25,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Route (API) for Express
-// app.use("/", router());
-
-// Routes (API) for Netlify Functions
 app.use("/", router());
 
 // Error Handler
