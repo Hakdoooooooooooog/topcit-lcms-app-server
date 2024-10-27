@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   CreateChapter,
   getChapterFilesByChapterId,
-  getChaptersByChapterId,
+  getSubChaptersByChapterId,
   updateChapter,
 } from "../Controller/Chapters";
 import { uploadFile } from "../services/multer";
@@ -13,7 +13,10 @@ import { uploadFile } from "../services/multer";
 
 export default (router: Router) => {
   // Chapters with files and subchapters
-  router.get("/chapters/:parent_chapter_id", getChaptersByChapterId);
+  router.get(
+    "/chapters/subchapters/:parent_chapter_id",
+    getSubChaptersByChapterId
+  );
   router.get("/chapters/files/:chapter_id", getChapterFilesByChapterId);
 
   // Chapters

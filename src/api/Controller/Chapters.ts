@@ -21,7 +21,10 @@ import { compress } from "compress-pdf";
 
 const { BUCKET_NAME } = process.env;
 
-export const getChaptersByChapterId = async (req: Request, res: Response) => {
+export const getSubChaptersByChapterId = async (
+  req: Request,
+  res: Response
+) => {
   const parent_chapter_id = req.params.parent_chapter_id;
 
   if (

@@ -115,7 +115,7 @@ export const setUserCookie = (res: any, token: string, title: string) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-    domain: "localhost",
+    domain: "topcit-api.netlify.app",
     path: "/",
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
   });
