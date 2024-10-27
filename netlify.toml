@@ -6,6 +6,6 @@ functions = "functions"
   status = 200
   to = "/.netlify/functions/api/:splat"
 [[headers]]
-  for = "/*"
+  for = "/admin/:splat"
   [headers.values]
     Access-Control-Allow-Origin = "https://topcitlcms.netlify.app"
