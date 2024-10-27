@@ -49,11 +49,11 @@ export const getAllTopicsWithChapters = async (): Promise<
               SubChapters: true,
               FileChapter: true,
             },
-
-            orderBy: {
-              chapter_number: "asc",
-            },
           },
+        },
+
+        orderBy: {
+          id: "asc",
         },
       });
 
@@ -93,10 +93,6 @@ export const getAllChaptersWithTopicId = async (
                   file_name: true,
                 },
               },
-            },
-
-            orderBy: {
-              chapter_number: "asc",
             },
           },
         },
