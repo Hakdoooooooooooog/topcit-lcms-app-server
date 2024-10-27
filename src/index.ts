@@ -7,6 +7,7 @@ import cors, { CorsOptions } from "cors";
 export const app = express();
 const corsOptions: CorsOptions = {
   origin: process.env.CLIENT_URL,
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
 

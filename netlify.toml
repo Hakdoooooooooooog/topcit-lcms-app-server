@@ -4,8 +4,8 @@ functions = "functions"
   force = true
   from = "/*"
   status = 200
-  to = "/.netlify/functions/api/:splat"
+  to = "/.netlify/functions/api"
 [[headers]]
-  for = "/*"
+  for = "/*/*/*"
   [headers.values]
     Access-Control-Allow-Origin = "https://topcitlcms.netlify.app"
