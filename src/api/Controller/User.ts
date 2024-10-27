@@ -193,7 +193,7 @@ export const userData = async (req: Request, res: Response) => {
 
     res.status(StatusCodes.OK).json(
       serializeBigInt({
-        userID: data[0].userid,
+        userid: data[0].userid,
         username: data[0].username,
         email: data[0].email,
       })

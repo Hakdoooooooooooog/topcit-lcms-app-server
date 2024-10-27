@@ -5,4 +5,4 @@ import router from "../src/api/router";
 
 app.use("/", router());
 
-module.exports.handler = serverless(app);
+export const handler = serverless(app);
