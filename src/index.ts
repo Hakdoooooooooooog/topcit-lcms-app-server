@@ -3,7 +3,6 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
 import cors, { CorsOptions } from "cors";
-import router from "./api/router";
 
 export const app = express();
 const corsOptions: CorsOptions = {
