@@ -15,12 +15,6 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use((req: Request, res: Response, next: NextFunction) => {
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
-  res.header("Content-enconding", "gzip");
-  next();
-});
 
 // Route (API) for Express
 // app.use("/", router());
