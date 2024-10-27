@@ -82,7 +82,7 @@ export const getChapterFilesByChapterId = async (
 };
 
 export const CreateChapter = async (req: Request, res: Response) => {
-  const file = req.file;
+  const chapterFile = req.file;
   const { topicId, chapterNum, chapterTitle, chapterDescription } = req.body;
 
   if (
@@ -93,7 +93,7 @@ export const CreateChapter = async (req: Request, res: Response) => {
     Number(topicId) < 0 ||
     Number(chapterNum) < 0
   ) {
-    res.sendStatus(400);
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
@@ -103,18 +103,21 @@ export const CreateChapter = async (req: Request, res: Response) => {
     typeof chapterTitle !== "string" ||
     typeof chapterDescription !== "string"
   ) {
-    res.sendStatus(400);
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
-  if (!file) {
-    res.sendStatus(400);
+  if (!chapterFile) {
+    res.status(400).json({ message: "No file uploaded" });
     return;
   }
 
   try {
     const filename =
-      file.fieldname + "-" + Date.now() + path.extname(file.originalname);
+      chapterFile.fieldname +
+      "-" +
+      Date.now() +
+      path.extname(chapterFile.originalname);
 
     const result = await Promise.all([
       createChapter(
@@ -124,10 +127,10 @@ export const CreateChapter = async (req: Request, res: Response) => {
         chapterDescription,
         {
           filename: filename,
-          mimetype: file.mimetype,
+          mimetype: chapterFile.mimetype,
         }
       ),
-      await compress(file.buffer),
+      await compress(chapterFile.buffer),
     ]).then((res) => {
       return {
         chapter: serializeBigInt(res[0]),
@@ -139,7 +142,7 @@ export const CreateChapter = async (req: Request, res: Response) => {
       Bucket: BUCKET_NAME,
       Key: filename,
       Body: result.compressedFile,
-      ContentType: file.mimetype,
+      ContentType: chapterFile.mimetype,
     };
 
     const command = new PutObjectCommand(params);
@@ -171,7 +174,7 @@ export const updateChapter = async (req: Request, res: Response) => {
     isNaN(Number(chapterId)) ||
     Number(chapterId) < 0
   ) {
-    res.sendStatus(400);
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
@@ -181,12 +184,12 @@ export const updateChapter = async (req: Request, res: Response) => {
     typeof chapterDescription !== "string" ||
     typeof chapterTitle !== "string"
   ) {
-    res.sendStatus(400);
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
   if (!file) {
-    res.sendStatus(400);
+    res.status(400).json({ message: "No file uploaded" });
     return;
   }
 

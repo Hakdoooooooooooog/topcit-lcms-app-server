@@ -74,11 +74,7 @@ export const CreateTopic = async (req: Request, res: Response) => {
       return;
     }
 
-    const resultCreate = await createTopic(
-      topicNum,
-      topicName,
-      topicDescription
-    );
+    const resultCreate = await createTopic(topicName, topicDescription);
 
     if (resultCreate) {
       res.status(201).json({

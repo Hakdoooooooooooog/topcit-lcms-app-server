@@ -10,7 +10,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.header("Content-enconding", "gzip");
   next();
 });
-
 app.use("/", router());
 
-module.exports.handler = serverless(app);
+export const handler = serverless(app);

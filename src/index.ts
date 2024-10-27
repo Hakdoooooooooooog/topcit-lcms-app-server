@@ -5,14 +5,33 @@ import "dotenv/config";
 import cors, { CorsOptions } from "cors";
 
 export const app = express();
-const corsOptions: CorsOptions = {
-  origin: process.env.CLIENT_URL,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-};
 
 // Middleware
-app.use(cors(corsOptions));
+app.use(cors());
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const allowedOrigins = [process.env.CLIENT_URL];
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    cors({
+      origin: origin,
+      credentials: true,
+    });
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Content-Encoding", "gzip");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
+  next();
+});
 app.use(bodyParser.json());
 app.use(cookieParser());
 

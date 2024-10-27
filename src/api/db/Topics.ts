@@ -106,7 +106,6 @@ export const getAllChaptersWithTopicId = async (
 };
 
 export const createTopic = async (
-  topicNum: number,
   topicName: string,
   topicDescription: string
 ): Promise<topics> => {
@@ -114,7 +113,6 @@ export const createTopic = async (
     try {
       const topic = await prisma.topics.create({
         data: {
-          id: topicNum,
           topictitle: topicName,
           description: topicDescription,
         },
@@ -126,7 +124,7 @@ export const createTopic = async (
         reject({ error: "Failed to create topic." });
       }
     } catch (error) {
-      reject({ error: error });
+      reject(error);
     }
   });
 };
@@ -154,7 +152,7 @@ export const updateTopic = async (
         reject({ error: "Failed to update topic." });
       }
     } catch (error) {
-      reject({ error: error });
+      reject(error);
     }
   });
 };
