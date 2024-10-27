@@ -6,7 +6,7 @@
     "generate": "npx prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "npm run generate && nodemon ./src/index.ts",
-    "build": "tsc -b"
+    "build": "tsc -b && npx prisma generate"
   },
   "keywords": [],
   "author": "Darenz Hicap",
