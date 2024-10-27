@@ -15,7 +15,7 @@ export default (router: Router) => {
   });
 
   router.get("/api/user/profile", validateUserToken, userData);
-  router.post("/user/logout", userLogout);
+  router.post("/api/user/logout", userLogout);
   router.put(
     "/api/user/updateData",
     validateData({ schema: EditProfileSchema }),
