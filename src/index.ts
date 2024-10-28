@@ -14,11 +14,11 @@ const corsOptions: CorsOptions = {
 };
 
 // Middleware
-app.use("/", router());
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
 
+app.use("/", router());
 // Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).send("Something broke!");
