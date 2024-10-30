@@ -1,7 +1,5 @@
 # lcms-topcit-app
 
-# lcms-topcit-app
-
 ## Description
 
 This project is a Learning Content Management System (LCMS) application designed for the TOPCIT program. It includes various modules such as user authentication, chapter management, quizzes, and topics.
