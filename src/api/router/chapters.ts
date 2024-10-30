@@ -3,6 +3,7 @@ import {
   CreateChapter,
   getChapterFilesByChapterId,
   getSubChaptersByChapterId,
+  // handleUpload,
   updateChapter,
 } from "../Controller/Chapters";
 import { uploadFile } from "../services/multer";
@@ -25,9 +26,10 @@ export default (router: Router) => {
     uploadFile("chapterFile"),
     CreateChapter
   ); // Todo: Create a new chapter
+
   router.put(
     "/admin/chapter/update/:chapterId",
     uploadFile("chapterFile"),
     updateChapter
-  ); // Update a chapter with a file
+  ); // Update a chapter
 };

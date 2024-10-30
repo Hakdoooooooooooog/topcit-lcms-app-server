@@ -40,14 +40,14 @@ const storage = Multer.memoryStorage();
 
 export const upload = Multer({
   storage: storage,
-  fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype !== "application/pdf" ||
-      !file.originalname.match(/\.(pdf)$/)
-    ) {
-      return cb(new Error("File must be a PDF"));
+  fileFilter(req, file, callback) {
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    const pdfRegex = /\.pdf$/;
+
+    if (!pdfRegex.test(fileExtension) || file.mimetype !== "application/pdf") {
+      callback(new Error("Only PDF files are allowed"));
     } else {
-      return cb(null, true);
+      callback(null, true);
     }
   },
 });
@@ -59,6 +59,7 @@ export const uploadFile =
         res.status(400).send({ message: err.message });
         return;
       } else if (err instanceof Error) {
+        console.log(err);
         res.status(400).send({ message: err.message });
         return;
       }

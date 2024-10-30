@@ -21,13 +21,9 @@ app.use(cookieParser());
 app.use("/", router());
 // Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  res.status(500).send("Something broke!");
+  res.status(500).send({ message: err.message, status: 500 });
 });
 
-// Route (API) for Express
-// if (process.env.NODE_ENV === "development") {
-//   app.use("/", router());
-//   app.listen(process.env.PORT, () => {
-//     console.log(`Server is running on ${process.env.SERVER_URL}`);
-//   });
-// }
+app.listen(process.env.PORT, () => {
+  console.log(`Server is running on ${process.env.SERVER_URL}`);
+});
