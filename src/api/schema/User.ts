@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const UserSchema = z.object({
-  userID: z.string().regex(/^202\d{6}$/, "Invalid user ID"),
+  userid: z.string().regex(/^202\d{6}$/, "Invalid user ID"),
   username: z
     .string()
     .min(3, "First name must be at least 3 characters long")

@@ -132,10 +132,10 @@ export const userLogin = async (req: Request, res: Response) => {
 };
 
 export const userRegister = async (req: Request, res: Response) => {
-  const { username, userID, email, password } = req.body;
+  const { username, userid, email, password } = req.body;
 
   try {
-    const userData = await getUserByEmailorID(email, Number(userID));
+    const userData = await getUserByEmailorID(email, Number(userid));
     if (userData.length > 0) {
       res
         .status(StatusCodes.BAD_REQUEST)
@@ -145,7 +145,7 @@ export const userRegister = async (req: Request, res: Response) => {
 
     const data = await createUser({
       username,
-      userID,
+      userid,
       email,
       password,
     });

@@ -1,7 +1,6 @@
 // Multer Config
 import { Request, Response, NextFunction } from "express";
 import Multer from "multer";
-import fs from "fs";
 import path from "path";
 
 // const storage = Multer.diskStorage({

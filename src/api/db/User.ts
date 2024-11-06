@@ -118,7 +118,7 @@ export function createUserRefreshToken(
 }
 
 export function createUser(user: any): Promise<any> {
-  const { username, userID, email, password } = user;
+  const { username, userid, email, password } = user;
 
   return new Promise(async (resolve, reject) => {
     const hashedPassword = await hashPassword(password);
@@ -126,7 +126,7 @@ export function createUser(user: any): Promise<any> {
     const createUser = await prisma.users.create({
       data: {
         username: username,
-        userid: Number(userID),
+        userid: Number(userid),
         email: email,
         password: hashedPassword,
       },
