@@ -150,12 +150,42 @@ export function getUserByEmail(email: string): Promise<users[]> {
 
 export function getUserByEmailorID(
   email: string,
-  userID: number
-): Promise<users[]> {
-  return prisma.users.findMany({
-    where: {
-      OR: [{ email: email }, { userid: userID }],
-    },
+  userid: number
+): Promise<{
+  email?: string;
+  userid?: bigint;
+}> {
+  return new Promise(async (resolve, reject) => {
+    const userData = await prisma.users.findFirst({
+      select: {
+        email: true,
+        userid: true,
+      },
+      where: {
+        OR: [
+          {
+            email: email,
+          },
+          {
+            userid: userid,
+          },
+        ],
+      },
+    });
+
+    if (userData) {
+      if (userData.email === email && Number(userData.userid) === userid) {
+        resolve({ email: userData.email, userid: userData.userid });
+      } else if (userData.email === email) {
+        resolve({ email: userData.email });
+      } else if (Number(userData.userid) === userid) {
+        resolve({ userid: userData.userid });
+      }
+    } else {
+      resolve({});
+    }
+
+    reject({ message: "User not found" });
   });
 }
 

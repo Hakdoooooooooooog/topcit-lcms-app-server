@@ -133,13 +133,25 @@ export const userLogin = async (req: Request, res: Response) => {
 
 export const userRegister = async (req: Request, res: Response) => {
   const { username, userid, email, password } = req.body;
+  const errors = [];
 
   try {
     const userData = await getUserByEmailorID(email, Number(userid));
-    if (userData.length > 0) {
+
+    if (userData) {
+      if (userData.email) {
+        errors.push({ email: "Email already exists" });
+      }
+
+      if (userData.userid) {
+        errors.push({ userid: "User ID already exists" });
+      }
+    }
+
+    if (errors.length > 0) {
       res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "User already exists" });
+        .json({ message: "User already exists", errors });
       return;
     }
 
@@ -150,16 +162,11 @@ export const userRegister = async (req: Request, res: Response) => {
       password,
     });
 
-    if (!data) {
-      res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "Error creating user" });
-      return;
-    }
-
-    res.status(StatusCodes.OK).json({ message: "User created" });
+    res.status(StatusCodes.OK).json({ message: data.message });
   } catch (err: any) {
-    res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: err.message });
   } finally {
     res.end();
   }
