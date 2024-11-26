@@ -21,26 +21,6 @@ export const getAllTopics = async (): Promise<topics[]> => {
   });
 };
 
-export const getTopicWithId = async (topicId: number): Promise<topics> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const topic = await prisma.topics.findUnique({
-        where: {
-          id: topicId,
-        },
-      });
-
-      if (topic) {
-        resolve(topic);
-      } else {
-        reject({ error: "Topic not found" });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
 export const getAllTopicsWithChapters = async (): Promise<
   ChaptersWithSubChaptersWithinTopic[]
 > => {
