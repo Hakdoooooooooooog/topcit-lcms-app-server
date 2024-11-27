@@ -1,4 +1,4 @@
-# lcms-topcit-app
+# topcit-lcms-app-server
 
 ## Description
 
