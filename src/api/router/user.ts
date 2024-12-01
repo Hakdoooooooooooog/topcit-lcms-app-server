@@ -3,6 +3,7 @@ import {
   updateUserData,
   userData,
   userLogout,
+  userProgressTrack,
   userRefreshTokenAccess,
 } from "../Controller/User";
 import { validateData } from "../middleware/validation";
@@ -11,7 +12,10 @@ import { EditProfileSchema } from "../schema/User";
 
 export default (router: Router) => {
   router.get("/user/profile", validateUserToken, userData);
+  router.get("/user/progress", validateUserToken, userProgressTrack);
+
   router.post("/user/logout", userLogout);
+
   router.put(
     "/user/updateData",
     validateData({ schema: EditProfileSchema }),

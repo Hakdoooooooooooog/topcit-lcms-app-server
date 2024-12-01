@@ -1,4 +1,9 @@
-import { prisma, user_refresh_tokens, users } from "../services/prisma";
+import {
+  prisma,
+  user_progress,
+  user_refresh_tokens,
+  users,
+} from "../services/prisma";
 import {
   comparePassword,
   hashPassword,
@@ -12,20 +17,20 @@ export async function getAllUsers(): Promise<users[]> {
 export async function getUserCredentials(
   email: string,
   password: string
-): Promise<users[]> {
+): Promise<users> {
   return new Promise(async (resolve, reject) => {
-    const userData = await prisma.users.findMany({
+    const userData = await prisma.users.findUnique({
       where: {
         email: email,
       },
     });
 
-    if (userData.length === 0) {
+    if (!userData) {
       reject({ message: "Invalid username or password" });
     } else {
       const isPasswordMatch = await comparePassword(
         password,
-        userData[0].password
+        userData.password
       );
 
       if (isPasswordMatch) {
@@ -37,11 +42,21 @@ export async function getUserCredentials(
   });
 }
 
-export async function getUserById(userID: number): Promise<users[]> {
-  return prisma.users.findMany({
-    where: {
-      userid: userID,
-    },
+export async function getUserById(
+  userID: number
+): Promise<Omit<users, "id" | "created_at" | "password">> {
+  return new Promise(async (resolve, reject) => {
+    const userData = await prisma.users.findUnique({
+      where: {
+        userid: userID,
+      },
+    });
+
+    if (userData) {
+      resolve(userData);
+    } else {
+      reject({ message: "User not found" });
+    }
   });
 }
 export async function getUserRefreshToken(
@@ -70,16 +85,16 @@ export async function getUserRefreshToken(
 export async function updateUserRefreshTokenByUserID(
   userId: number,
   refreshToken: string
-): Promise<any> {
+): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
     const userToken = await getUserRefreshToken(userId);
     if (!userToken) {
-      reject({ message: "Refresh token not found" });
+      return reject({ message: "Refresh token not found" });
     }
 
     const updateToken = await prisma.user_refresh_tokens.update({
       where: {
-        id: userToken?.id,
+        id: userToken.id,
       },
       data: {
         token: refreshToken,
@@ -99,7 +114,7 @@ export async function updateUserRefreshTokenByUserID(
 export function createUserRefreshToken(
   userId: number,
   refreshToken: string
-): Promise<any> {
+): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
     const createToken = await prisma.user_refresh_tokens.create({
       data: {
@@ -117,25 +132,82 @@ export function createUserRefreshToken(
   });
 }
 
-export function createUser(user: any): Promise<any> {
+export function createUser(
+  user: Omit<users, "id" | "role" | "created_at">
+): Promise<{ message: string; errors?: any }> {
   const { username, userid, email, password } = user;
 
   return new Promise(async (resolve, reject) => {
     const hashedPassword = await hashPassword(password);
 
-    const createUser = await prisma.users.create({
-      data: {
-        username: username,
-        userid: Number(userid),
-        email: email,
-        password: hashedPassword,
+    await prisma
+      .$transaction([
+        prisma.users.create({
+          data: {
+            username: username,
+            userid: userid,
+            email: email,
+            password: hashedPassword,
+          },
+        }),
+        prisma.user_progress.create({
+          data: {
+            user_id: userid,
+          },
+        }),
+      ])
+      .then((_data) => {
+        return resolve({ message: "User created successfully" });
+      })
+      .catch((err) => {
+        return reject({ message: "Error creating user", errors: err });
+      });
+  });
+}
+
+export function getUserProgressByUserId(
+  userId: number
+): Promise<Omit<user_progress, "id">> {
+  return new Promise(async (resolve, reject) => {
+    const userProgress = await prisma.user_progress.findFirst({
+      where: {
+        user_id: userId,
+      },
+      select: {
+        user_id: true,
+        completed_lessons: true,
+        completed_quizzes: true,
+        curr_chap_id: true,
+        curr_topic_id: true,
       },
     });
 
-    if (createUser) {
-      resolve({ message: "User created successfully" });
+    if (userProgress) {
+      resolve(userProgress);
     } else {
-      reject({ message: "Error creating user" });
+      reject({ message: "User progress not found" });
+    }
+  });
+}
+
+export function updateUserProgressByUserId(
+  user_id: number,
+  progress: Omit<user_progress, "id" | "user_id">
+): Promise<{ message: string }> {
+  return new Promise(async (resolve, reject) => {
+    const updateUserProgress = await prisma.user_progress.update({
+      where: {
+        user_id: user_id,
+      },
+      data: {
+        ...progress,
+      },
+    });
+
+    if (updateUserProgress) {
+      resolve({ message: "User progress updated successfully" });
+    } else {
+      reject({ message: "Error updating user progress" });
     }
   });
 }

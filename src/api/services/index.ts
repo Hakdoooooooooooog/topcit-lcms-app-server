@@ -25,7 +25,7 @@ export const comparePassword = async (password: string, hash: string) => {
   return await bcrypt.compare(password, hash);
 };
 
-export const generateRefreshToken = async (user: users[]): Promise<string> => {
+export const generateRefreshToken = async (user: users): Promise<string> => {
   return new Promise((resolve, reject) => {
     jwt.sign(
       { user: user },

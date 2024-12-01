@@ -6,6 +6,7 @@ import {
   getUserByEmailorID,
   getUserById,
   getUserCredentials,
+  getUserProgressByUserId,
   getUserRefreshToken,
   updateUserById,
   updateUserRefreshTokenByUserID,
@@ -23,6 +24,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
   try {
     const userData = await getUserCredentials(email, password);
+
     if (!userData) {
       res
         .status(StatusCodes.FORBIDDEN)
@@ -30,9 +32,7 @@ export const userLogin = async (req: Request, res: Response) => {
       return;
     }
 
-    const refreshTokenData = await getUserRefreshToken(
-      Number(userData[0].userid)
-    );
+    const refreshTokenData = await getUserRefreshToken(Number(userData.userid));
 
     // Check if refresh token exists
     if (refreshTokenData === null) {
@@ -42,7 +42,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Create refresh token in database
       const tokenData = await createUserRefreshToken(
-        Number(userData[0].userid),
+        Number(userData.userid),
         refreshToken
       );
 
@@ -53,8 +53,8 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Generate access token and set cookie
       const accessToken = await generateAuthenticatedToken({
-        userId: Number(userData[0].userid),
-        role: userData[0].role,
+        userId: Number(userData.userid),
+        role: userData.role,
         refreshToken,
       });
       setUserCookie(res, accessToken, "accessToken");
@@ -62,8 +62,8 @@ export const userLogin = async (req: Request, res: Response) => {
       res.status(StatusCodes.OK).json(
         serializeBigInt({
           message: "Login successfully",
-          userId: userData[0].userid,
-          role: userData[0].role,
+          userId: userData.userid,
+          role: userData.role,
         })
       );
       return;
@@ -76,8 +76,8 @@ export const userLogin = async (req: Request, res: Response) => {
 
     // Generate access token and set cookie
     const accessToken = await generateAuthenticatedToken({
-      userId: Number(userData[0].userid),
-      role: userData[0].role,
+      userId: Number(userData.userid),
+      role: userData.role,
       refreshToken: refreshTokenData.token,
     });
     setUserCookie(res, accessToken, "accessToken");
@@ -85,8 +85,8 @@ export const userLogin = async (req: Request, res: Response) => {
     res.status(200).json(
       serializeBigInt({
         message: "Login successfully",
-        userId: userData[0].userid,
-        role: userData[0].role,
+        userId: userData.userid,
+        role: userData.role,
       })
     );
   } catch (err: any) {
@@ -96,7 +96,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Update refresh token in database
       const tokenData = await updateUserRefreshTokenByUserID(
-        Number(data[0].userid),
+        Number(data.userid),
         newRefreshToken
       );
 
@@ -109,8 +109,8 @@ export const userLogin = async (req: Request, res: Response) => {
 
       // Generate access token and set cookie
       const accessToken = await generateAuthenticatedToken({
-        userId: Number(data[0].userid),
-        role: data[0].role,
+        userId: Number(data.userid),
+        role: data.role,
         refreshToken: newRefreshToken,
       });
       setUserCookie(res, accessToken, "accessToken");
@@ -118,8 +118,8 @@ export const userLogin = async (req: Request, res: Response) => {
       res.status(StatusCodes.OK).json(
         serializeBigInt({
           message: "Login successfully",
-          userId: data[0].userid,
-          role: data[0].role,
+          userId: data.userid,
+          role: data.role,
         })
       );
       return;
@@ -166,7 +166,7 @@ export const userRegister = async (req: Request, res: Response) => {
   } catch (err: any) {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: err.message });
+      .json({ message: err.message, errors: err.errors });
   } finally {
     res.end();
   }
@@ -193,16 +193,11 @@ export const userData = async (req: Request, res: Response) => {
       return;
     }
 
-    if (data.length === 0) {
-      res.sendStatus(StatusCodes.BAD_REQUEST);
-      return;
-    }
-
     res.status(StatusCodes.OK).json(
       serializeBigInt({
-        userid: data[0].userid,
-        username: data[0].username,
-        email: data[0].email,
+        userid: data.userid,
+        username: data.username,
+        email: data.email,
       })
     );
   } catch (err: any) {
@@ -211,6 +206,35 @@ export const userData = async (req: Request, res: Response) => {
       .json({ message: err.message });
   } finally {
     res.end();
+  }
+};
+
+export const userProgressTrack = async (req: Request, res: Response) => {
+  const { userId, isAuth } = req.query;
+
+  if (!isAuth) {
+    res.sendStatus(StatusCodes.UNAUTHORIZED);
+    return;
+  }
+
+  if (res.locals.userId !== Number(userId)) {
+    res.sendStatus(StatusCodes.UNAUTHORIZED);
+    return;
+  }
+
+  try {
+    const progress = await getUserProgressByUserId(Number(userId));
+
+    if (!progress) {
+      res.sendStatus(StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    res.status(StatusCodes.OK).json(serializeBigInt(progress));
+  } catch (error: any) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: error.message });
   }
 };
 
@@ -228,33 +252,39 @@ export const userRefreshTokenAccess = async (req: Request, res: Response) => {
   }
 
   try {
-    const userData = await getUserById(Number(userId));
+    const data = await Promise.all([
+      getUserById(Number(userId)),
+      getUserRefreshToken(Number(userId)),
+    ]).then((data) => {
+      return {
+        user: data[0],
+        refreshToken: data[1],
+      };
+    });
 
-    if (!userData) {
+    if (!data.user) {
       res.sendStatus(StatusCodes.NOT_FOUND);
       return;
     }
 
-    const userRefreshToken = await getUserRefreshToken(Number(userId));
-    if (!userRefreshToken) {
+    if (!data.refreshToken) {
       res.sendStatus(StatusCodes.UNAUTHORIZED);
       return;
     }
 
     const tokenValidity = await checkUserRefreshTokenValidity(
-      userRefreshToken.expires_at,
+      data.refreshToken.expires_at,
       new Date()
     );
 
     if (tokenValidity.message === "Refresh token valid") {
       const newAccessToken = await generateAuthenticatedToken({
-        userId: Number(userData[0].userid),
-        role: userData[0].role,
-        refreshToken: userRefreshToken.token,
+        userId: Number(data.user.userid),
+        role: data.user.role,
+        refreshToken: data.refreshToken.token,
       });
 
       setUserCookie(res, newAccessToken, "accessToken");
-
       res.sendStatus(StatusCodes.OK);
       return;
     }

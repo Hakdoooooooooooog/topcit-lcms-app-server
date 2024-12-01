@@ -12,7 +12,6 @@ import { serializeBigInt } from "../services";
 export const Topics = async (req: Request, res: Response) => {
   try {
     const topics = await getAllTopics();
-
     res.status(200).json(serializeBigInt(topics));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -76,19 +75,15 @@ export const CreateTopic = async (req: Request, res: Response) => {
 
 export const UpdateTopic = async (req: Request, res: Response) => {
   const topic_id = req.params.topic_id;
-  const { topicData } = req.body;
+  const { topicTitle, description } = req.body;
 
-  if (!topic_id || !topicData.topicTitle || !topicData.description) {
+  if (!topic_id || !topicTitle || !description) {
     res.sendStatus(400);
     return;
   }
 
   try {
-    const topic = await updateTopic(
-      Number(topic_id),
-      topicData.topicTitle,
-      topicData.description
-    );
+    const topic = await updateTopic(Number(topic_id), topicTitle, description);
 
     if (!topic) {
       res.status(404).json({ message: "Topic not found" });

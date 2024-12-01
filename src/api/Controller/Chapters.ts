@@ -15,11 +15,14 @@ import {
   PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
 import { s3 } from "../services/s3Client";
-import { chapters, files } from "@prisma/client";
+import { getSignedUrl } from "@aws-sdk/cloudfront-signer";
+import { chapters, files, user_progress } from "@prisma/client";
 import { compress } from "compress-pdf";
 import fs from "fs";
+import { getUserProgressByUserId } from "../db/User";
 
-const { BUCKET_NAME } = process.env;
+const { BUCKET_NAME, CLOUDFRONT_KEY_PAIR_ID, CLOUDFRONT_PRIVATE_KEY } =
+  process.env;
 
 export const getSubChaptersByChapterId = async (
   req: Request,
@@ -51,6 +54,7 @@ export const getChapterFilesByChapterId = async (
   req: Request,
   res: Response
 ) => {
+  const { userId } = req.query;
   const chapter_id = req.params.chapter_id;
   const topic_id = req.query.topic_id;
 
@@ -65,17 +69,54 @@ export const getChapterFilesByChapterId = async (
   }
 
   try {
-    const chapterFiles = await getChapterPDFByChapterId(Number(chapter_id));
-
-    const PDFUrl =
-      "https://d3bqe2jvukr86q.cloudfront.net/" + chapterFiles.file_name;
+    const chapterFiles = await Promise.all([
+      getChapterPDFByChapterId(Number(chapter_id)),
+      getUserProgressByUserId(Number(userId)),
+    ])
+      .then((res) => {
+        return {
+          file: serializeBigInt(res[0]) as files,
+          userProgress: serializeBigInt(res[1]) as user_progress,
+        };
+      })
+      .catch((error) => {
+        throw new Error(error);
+      });
 
     if (!chapterFiles) {
       res.sendStatus(404);
       return;
     }
 
-    res.status(200).json({ url: PDFUrl });
+    if (
+      (chapterFiles.userProgress?.curr_chap_id ?? 0) >=
+      chapterFiles.file.chapter_id
+    ) {
+      const pdfUrl =
+        "https://d3bqe2jvukr86q.cloudfront.net/" + chapterFiles.file.file_name;
+
+      const signedUrl = getSignedUrl({
+        url: pdfUrl,
+        privateKey: Buffer.from(CLOUDFRONT_PRIVATE_KEY || "", "base64"),
+        keyPairId: CLOUDFRONT_KEY_PAIR_ID || "",
+        policy: JSON.stringify({
+          Statement: [
+            {
+              Resource: pdfUrl,
+              Condition: {
+                DateLessThan: {
+                  "AWS:EpochTime": Math.floor(Date.now() / 1000) + 3600,
+                },
+              },
+            },
+          ],
+        }),
+      });
+
+      res.status(200).json({ url: signedUrl });
+    } else {
+      res.status(200).json({ url: "placeholder url" });
+    }
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

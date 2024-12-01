@@ -3,8 +3,6 @@ generator client {
   binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
-
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -126,11 +124,13 @@ model user_multiple_choice_answers {
 }
 
 model user_progress {
-  id                BigInt @id @default(autoincrement())
-  user_id           BigInt
-  completed_lessons Int?   @default(0)
-  completed_quizzes Int?   @default(0)
-  users             users  @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
+  id                BigInt  @id @default(autoincrement())
+  user_id           BigInt  @unique(map: "unq_userid")
+  completed_lessons Int?    @default(0)
+  completed_quizzes Int?    @default(0)
+  curr_chap_id      BigInt? @default(1)
+  curr_topic_id     BigInt? @default(1)
+  users             users   @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
 
   @@index([user_id], map: "idx_user_progress_user_id")
 }
@@ -176,7 +176,7 @@ model users {
   user_completed_chapters      user_completed_chapters[]
   user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
-  user_progress                user_progress[]
+  user_progress                user_progress?
   user_quiz_attempts           user_quiz_attempts[]
   user_refresh_tokens          user_refresh_tokens[]
 }
