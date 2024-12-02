@@ -18,7 +18,6 @@ import { s3 } from "../services/s3Client";
 import { getSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { chapters, files, user_progress } from "@prisma/client";
 import { compress } from "compress-pdf";
-import fs from "fs";
 import { getUserProgressByUserId } from "../db/User";
 
 const { BUCKET_NAME, CLOUDFRONT_KEY_PAIR_ID, CLOUDFRONT_PRIVATE_KEY } =
@@ -54,7 +53,7 @@ export const getChapterFilesByChapterId = async (
   req: Request,
   res: Response
 ) => {
-  const { userId } = req.query;
+  const { userId, userRole, isAuth } = req.query;
   const chapter_id = req.params.chapter_id;
   const topic_id = req.query.topic_id;
 
@@ -68,32 +67,79 @@ export const getChapterFilesByChapterId = async (
     return;
   }
 
-  try {
-    const chapterFiles = await Promise.all([
-      getChapterPDFByChapterId(Number(chapter_id)),
-      getUserProgressByUserId(Number(userId)),
-    ])
-      .then((res) => {
-        return {
-          file: serializeBigInt(res[0]) as files,
-          userProgress: serializeBigInt(res[1]) as user_progress,
-        };
-      })
-      .catch((error) => {
-        throw new Error(error);
-      });
+  if (!userId || isNaN(Number(userId)) || Number(userId) < 0) {
+    res.sendStatus(400);
+    return;
+  }
 
-    if (!chapterFiles) {
-      res.sendStatus(404);
-      return;
+  if (!isAuth || typeof isAuth !== "string") {
+    res.sendStatus(400);
+    return;
+  }
+
+  if (!userRole || typeof userRole !== "string") {
+    res.sendStatus(400);
+    return;
+  }
+
+  try {
+    if (userRole === "user") {
+      const chapterFiles = await Promise.all([
+        getChapterPDFByChapterId(Number(chapter_id)),
+        getUserProgressByUserId(Number(userId)),
+      ])
+        .then((res) => {
+          return {
+            file: serializeBigInt(res[0]) as files,
+            userProgress: serializeBigInt(res[1]) as user_progress,
+          };
+        })
+        .catch((error) => {
+          throw new Error(error);
+        });
+
+      if (!chapterFiles) {
+        res.sendStatus(404);
+        return;
+      }
+
+      if (
+        (chapterFiles.userProgress?.curr_chap_id ?? 0) >=
+        chapterFiles.file.chapter_id
+      ) {
+        const pdfUrl =
+          "https://d3bqe2jvukr86q.cloudfront.net/" +
+          chapterFiles.file.file_name;
+
+        const signedUrl = getSignedUrl({
+          url: pdfUrl,
+          privateKey: Buffer.from(CLOUDFRONT_PRIVATE_KEY || "", "base64"),
+          keyPairId: CLOUDFRONT_KEY_PAIR_ID || "",
+          policy: JSON.stringify({
+            Statement: [
+              {
+                Resource: pdfUrl,
+                Condition: {
+                  DateLessThan: {
+                    "AWS:EpochTime": Math.floor(Date.now() / 1000) + 3600,
+                  },
+                },
+              },
+            ],
+          }),
+        });
+
+        res.status(200).json({ url: signedUrl });
+      } else {
+        res.status(200).json({ url: "placeholder" });
+      }
     }
 
-    if (
-      (chapterFiles.userProgress?.curr_chap_id ?? 0) >=
-      chapterFiles.file.chapter_id
-    ) {
+    if (userRole === "admin") {
+      const chapterFiles = await getChapterPDFByChapterId(Number(chapter_id));
+
       const pdfUrl =
-        "https://d3bqe2jvukr86q.cloudfront.net/" + chapterFiles.file.file_name;
+        "https://d3bqe2jvukr86q.cloudfront.net/" + chapterFiles.file_name;
 
       const signedUrl = getSignedUrl({
         url: pdfUrl,
@@ -114,11 +160,9 @@ export const getChapterFilesByChapterId = async (
       });
 
       res.status(200).json({ url: signedUrl });
-    } else {
-      res.status(200).json({ url: "placeholder" });
     }
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: JSON.stringify(error.message) });
   }
 };
 

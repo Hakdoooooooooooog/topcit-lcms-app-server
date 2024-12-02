@@ -18,11 +18,12 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
 
-app.use("/", router());
 // Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).send({ message: err.message, status: 500 });
 });
+
+app.use("/", router());
 
 app.listen(process.env.PORT, () => {
   console.log(`Server is running on ${process.env.SERVER_URL}`);
