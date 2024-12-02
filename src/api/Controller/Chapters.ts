@@ -6,7 +6,7 @@ import {
   updateChapterContentByChapterId,
   updateChapterPDFByChapterId,
 } from "../db/Chapters";
-import { serializeBigInt } from "../services";
+import { formatPDFFilename, serializeBigInt } from "../services";
 import path from "path";
 import {
   DeleteObjectCommand,
@@ -115,7 +115,7 @@ export const getChapterFilesByChapterId = async (
 
       res.status(200).json({ url: signedUrl });
     } else {
-      res.status(200).json({ url: "placeholder url" });
+      res.status(200).json({ url: "placeholder" });
     }
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -154,11 +154,12 @@ export const CreateChapter = async (req: Request, res: Response) => {
   }
 
   try {
-    const filename =
-      chapterFile.fieldname +
-      "-" +
-      Date.now() +
-      path.extname(chapterFile.originalname);
+    const filename = formatPDFFilename({
+      chapterFile: chapterFile,
+      topicId: Number(topicId),
+      chapterNum: Number(chapterNum),
+      path: path,
+    });
 
     const result = await Promise.all([
       createChapter(
@@ -236,8 +237,12 @@ export const updateChapter = async (req: Request, res: Response) => {
   }
 
   try {
-    const filename =
-      file.fieldname + "-" + Date.now() + path.extname(file.originalname);
+    const filename = formatPDFFilename({
+      chapterFile: file,
+      topicId: Number(topicId),
+      chapterNum: Number(chapterId),
+      path: path,
+    });
 
     const result = await Promise.all([
       getChapterPDFByChapterId(Number(chapterId)),
@@ -299,53 +304,5 @@ export const updateChapter = async (req: Request, res: Response) => {
     res.status(200).json({ message: "Chapter updated" });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
-  }
-};
-
-export const handleUpload = (req: Request, res: Response) => {
-  const file = req.file;
-  const chunksDir = "./uploads/chunks";
-  const finalDir = "./uploads/final";
-  const chunkIndex = Number(req.body.chunkIndex);
-  const totalChunks = Number(req.body.totalChunks);
-
-  if (!file) {
-    res.status(400).send("No file uploaded");
-    return;
-  }
-
-  // Ensure chunks directory exists
-  if (!fs.existsSync(chunksDir)) {
-    fs.mkdirSync(chunksDir, { recursive: true });
-  }
-
-  // Ensure final directory exists
-  if (!fs.existsSync(finalDir)) {
-    fs.mkdirSync(finalDir, { recursive: true });
-  }
-
-  // Save the chunk
-  const chunkPath = `${chunksDir}/chunk-${chunkIndex}`;
-  fs.writeFileSync(chunkPath, fs.readFileSync(file.path));
-
-  // Remove the temporary file
-  fs.unlinkSync(file.path);
-
-  // Concatenate chunks if all chunks are uploaded
-  if (chunkIndex === totalChunks - 1) {
-    const finalPath = `${finalDir}/${file.filename}`;
-    const writeStream = fs.createWriteStream(finalPath);
-
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkFilePath = `${chunksDir}/chunk-${i}`;
-      const chunk = fs.readFileSync(chunkFilePath);
-      writeStream.write(chunk);
-      fs.unlinkSync(chunkFilePath); // Remove chunk after writing
-    }
-
-    writeStream.end();
-    res.send({ message: "File uploaded and merged successfully" });
-  } else {
-    res.send({ message: "Chunk uploaded successfully" });
   }
 };

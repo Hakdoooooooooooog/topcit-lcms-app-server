@@ -1,6 +1,7 @@
 import { users } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import path from "path";
 
 export const hashPassword = async (password: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -116,7 +117,31 @@ export const setUserCookie = (res: any, token: string, title: string) => {
     httpOnly: true,
     sameSite: "none",
     path: "/",
-    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     partitioned: true,
   });
+};
+
+export const formatPDFFilename = ({
+  chapterFile,
+  topicId,
+  chapterNum,
+  path,
+}: {
+  chapterFile: Express.Multer.File;
+  topicId: number;
+  chapterNum: number;
+  path: path.PlatformPath;
+}) => {
+  const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+  const filename =
+    chapterFile.fieldname +
+    "-" +
+    topicId +
+    "-" +
+    chapterNum +
+    "-" +
+    uniqueSuffix +
+    path.extname(chapterFile.originalname);
+
+  return filename;
 };
