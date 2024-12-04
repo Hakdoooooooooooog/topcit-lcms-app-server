@@ -1,4 +1,4 @@
-import { chapters, files } from "../services/prisma";
+import { chapters, files, user_completed_chapters } from "../services/prisma";
 
 export type ChaptersWithSubChaptersWithinTopic = {
   id: bigint;
@@ -13,6 +13,6 @@ export type ChaptersWithSubChaptersWithinTopic = {
     sub_title: string;
     created_at: Date | null;
     SubChapters: chapters[];
-    FileChapter: files | null | { file_name: string };
+    FileChapter: Pick<files, "file_name"> | null;
   }[];
 };

@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import { Request, Response } from "express";
 import {
   createUser,
+  createUserCompleteChapterProgress,
   createUserRefreshToken,
   getUserByEmailorID,
   getUserById,
@@ -9,6 +10,7 @@ import {
   getUserProgressByUserId,
   getUserRefreshToken,
   updateUserById,
+  updateUserProgressByUserId,
   updateUserRefreshTokenByUserID,
 } from "../db/User";
 import {
@@ -338,6 +340,79 @@ export const updateUserData = async (req: Request, res: Response) => {
   } catch (err: any) {
     res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
     console.log(err);
+  } finally {
+    res.end();
+  }
+};
+
+export const updateUserChapterProgress = async (
+  req: Request,
+  res: Response
+) => {
+  const { userId, isAuth } = req.query;
+  const { chapterId } = req.body;
+
+  if (!userId || !chapterId || !isAuth) {
+    res.sendStatus(StatusCodes.BAD_REQUEST);
+    return;
+  }
+
+  if (res.locals.userId !== Number(userId) || isAuth === "false") {
+    res.sendStatus(StatusCodes.UNAUTHORIZED);
+    return;
+  }
+
+  try {
+    const progressData = await getUserProgressByUserId(Number(userId));
+
+    if (!progressData) {
+      res.sendStatus(StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    if (
+      progressData.user_completed_chapters.some(
+        (chapter) => chapter.chapter_id === BigInt(chapterId)
+      )
+    ) {
+      res
+        .status(StatusCodes.CONFLICT)
+        .json({ message: "Chapter already completed" });
+      return;
+    }
+
+    if (!progressData.user_progress) {
+      res.sendStatus(StatusCodes.BAD_REQUEST);
+      return;
+    }
+
+    const updateProgress = await Promise.all([
+      createUserCompleteChapterProgress(Number(userId), chapterId),
+      updateUserProgressByUserId(Number(userId), {
+        ...progressData.user_progress,
+        curr_chap_id: Number(chapterId) + 1,
+      }),
+    ]).then((data) => {
+      return {
+        userProgress: data[0],
+        updatedProgress: data[1],
+      };
+    });
+
+    if (!updateProgress.userProgress || !updateProgress.updatedProgress) {
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: "Error updating chapter progress" });
+      return;
+    }
+
+    res
+      .status(StatusCodes.OK)
+      .json({ message: "Chapter progress updated successfully" });
+  } catch (err: any) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: err.message });
   } finally {
     res.end();
   }

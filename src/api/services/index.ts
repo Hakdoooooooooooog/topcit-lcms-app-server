@@ -59,7 +59,7 @@ export const generateAuthenticatedToken = async ({
       { userId: userId, role: role, refreshToken },
       process.env.JWT_ACCESS_TOKEN_SECRET as string,
       {
-        expiresIn: "10m",
+        expiresIn: "5m",
       },
       (err, token) => {
         if (err) {

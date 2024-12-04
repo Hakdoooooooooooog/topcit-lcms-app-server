@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  updateUserChapterProgress,
   updateUserData,
   userData,
   userLogout,
@@ -15,6 +16,11 @@ export default (router: Router) => {
   router.get("/user/progress", validateUserToken, userProgressTrack);
 
   router.post("/user/logout", userLogout);
+  router.post(
+    "/user/progress/update",
+    validateUserToken,
+    updateUserChapterProgress
+  );
 
   router.put(
     "/user/updateData",

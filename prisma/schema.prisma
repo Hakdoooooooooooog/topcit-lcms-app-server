@@ -9,18 +9,18 @@ datasource db {
 }
 
 model chapters {
-  id                      BigInt                    @id @default(autoincrement())
-  topic_id                BigInt
-  parent_chapter_id       BigInt?
-  chapter_number          String
-  title                   String
-  sub_title               String
-  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
-  chapters                chapters?                 @relation("chaptersTochapters", fields: [parent_chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_2")
-  SubChapters             chapters[]                @relation("chaptersTochapters")
-  topics                  topics                    @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_1")
-  FileChapter             files?
-  user_completed_chapters user_completed_chapters[]
+  id                    BigInt                    @id @default(autoincrement())
+  topic_id              BigInt
+  parent_chapter_id     BigInt?
+  chapter_number        String
+  title                 String
+  sub_title             String
+  created_at            DateTime?                 @default(now()) @db.Timestamp(6)
+  chapters              chapters?                 @relation("chaptersTochapters", fields: [parent_chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_2")
+  SubChapters           chapters[]                @relation("chaptersTochapters")
+  topics                topics                    @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_1")
+  FileChapter           files?
+  UserCompletedChapters user_completed_chapters[]
 
   @@index([parent_chapter_id], map: "idx_chapters_parent_id")
   @@index([topic_id], map: "idx_chapters_topic_id")
@@ -128,8 +128,9 @@ model user_progress {
   user_id           BigInt  @unique(map: "unq_userid")
   completed_lessons Int?    @default(0)
   completed_quizzes Int?    @default(0)
-  curr_chap_id      BigInt? @default(1)
+  curr_chap_id      Int?    @default(1)
   curr_topic_id     BigInt? @default(1)
+  curr_quiz_id      BigInt? @default(0)
   users             users   @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
 
   @@index([user_id], map: "idx_user_progress_user_id")

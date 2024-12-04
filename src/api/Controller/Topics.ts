@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import {
   getAllTopics,
-  getAllChaptersWithTopicId,
   getAllTopicsWithChapters,
   checkTopicExists,
   createTopic,
@@ -23,18 +22,6 @@ export const TopicsWithAllChapters = async (req: Request, res: Response) => {
     const allTopicsWithChapter = await getAllTopicsWithChapters();
 
     res.status(200).json(serializeBigInt(allTopicsWithChapter));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const TopicWithChapters = async (req: Request, res: Response) => {
-  const topic_id = req.params.topic_id;
-
-  try {
-    const topic = await getAllChaptersWithTopicId(Number(topic_id));
-
-    res.status(200).json(serializeBigInt(topic));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

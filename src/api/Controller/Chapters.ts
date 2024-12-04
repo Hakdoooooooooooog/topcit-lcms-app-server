@@ -19,6 +19,7 @@ import { getSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { chapters, files, user_progress } from "@prisma/client";
 import { compress } from "compress-pdf";
 import { getUserProgressByUserId } from "../db/User";
+import { UserProgress } from "../types/users";
 
 const { BUCKET_NAME, CLOUDFRONT_KEY_PAIR_ID, CLOUDFRONT_PRIVATE_KEY } =
   process.env;
@@ -91,7 +92,7 @@ export const getChapterFilesByChapterId = async (
         .then((res) => {
           return {
             file: serializeBigInt(res[0]) as files,
-            userProgress: serializeBigInt(res[1]) as user_progress,
+            userProgress: serializeBigInt(res[1]) as UserProgress,
           };
         })
         .catch((error) => {
@@ -104,7 +105,7 @@ export const getChapterFilesByChapterId = async (
       }
 
       if (
-        (chapterFiles.userProgress?.curr_chap_id ?? 0) >=
+        (chapterFiles.userProgress?.user_progress?.curr_chap_id ?? 0) >=
         chapterFiles.file.chapter_id
       ) {
         const pdfUrl =

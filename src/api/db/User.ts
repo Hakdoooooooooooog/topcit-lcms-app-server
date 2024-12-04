@@ -9,6 +9,7 @@ import {
   hashPassword,
   refreshTokenExpiration,
 } from "../services/index";
+import { UserProgress } from "../types/users";
 
 export async function getAllUsers(): Promise<users[]> {
   return prisma.users.findMany();
@@ -165,20 +166,46 @@ export function createUser(
   });
 }
 
-export function getUserProgressByUserId(
-  userId: number
-): Promise<Omit<user_progress, "id">> {
+export function createUserCompleteChapterProgress(
+  userId: number,
+  chapterId: number
+): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
-    const userProgress = await prisma.user_progress.findFirst({
-      where: {
+    const userProgress = await prisma.user_completed_chapters.create({
+      data: {
         user_id: userId,
+        chapter_id: chapterId,
+        completion_status: "completed",
       },
+    });
+
+    if (userProgress) {
+      resolve({ message: "User progress updated successfully" });
+    } else {
+      reject({ message: "Error updating user progress" });
+    }
+  });
+}
+
+export function getUserProgressByUserId(userId: number): Promise<UserProgress> {
+  return new Promise(async (resolve, reject) => {
+    const userProgress = await prisma.users.findUnique({
       select: {
-        user_id: true,
-        completed_lessons: true,
-        completed_quizzes: true,
-        curr_chap_id: true,
-        curr_topic_id: true,
+        userid: true,
+        email: true,
+        user_progress: {
+          select: {
+            completed_lessons: true,
+            completed_quizzes: true,
+            curr_chap_id: true,
+            curr_topic_id: true,
+            curr_quiz_id: true,
+          },
+        },
+        user_completed_chapters: true,
+      },
+      where: {
+        userid: userId,
       },
     });
 
@@ -195,16 +222,29 @@ export function updateUserProgressByUserId(
   progress: Omit<user_progress, "id" | "user_id">
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
-    const updateUserProgress = await prisma.user_progress.update({
-      where: {
-        user_id: user_id,
-      },
-      data: {
-        ...progress,
-      },
-    });
+    const updateProgressTransaction = await prisma.$transaction([
+      prisma.user_progress.update({
+        where: {
+          user_id: user_id,
+        },
+        data: progress,
+      }),
+      prisma.user_progress.update({
+        where: {
+          user_id: user_id,
+        },
+        data: {
+          completed_lessons: await prisma.user_completed_chapters.count({
+            where: {
+              user_id: user_id,
+              completion_status: "completed",
+            },
+          }),
+        },
+      }),
+    ]);
 
-    if (updateUserProgress) {
+    if (updateProgressTransaction) {
       resolve({ message: "User progress updated successfully" });
     } else {
       reject({ message: "Error updating user progress" });

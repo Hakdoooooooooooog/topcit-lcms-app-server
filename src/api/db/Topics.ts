@@ -31,7 +31,11 @@ export const getAllTopicsWithChapters = async (): Promise<
           chapters: {
             include: {
               SubChapters: true,
-              FileChapter: true,
+              FileChapter: {
+                select: {
+                  file_name: true,
+                },
+              },
             },
 
             orderBy: {
@@ -49,51 +53,6 @@ export const getAllTopicsWithChapters = async (): Promise<
         resolve(topics);
       } else {
         reject({ error: "No topics found" });
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
-export const getAllChaptersWithTopicId = async (
-  topicId: number
-): Promise<ChaptersWithSubChaptersWithinTopic> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const topic = await prisma.topics.findUnique({
-        where: {
-          id: topicId,
-        },
-        include: {
-          chapters: {
-            where: {
-              parent_chapter_id: null,
-            },
-            include: {
-              SubChapters: {
-                where: {
-                  parent_chapter_id: { not: null },
-                },
-              },
-              FileChapter: {
-                select: {
-                  file_name: true,
-                },
-              },
-            },
-
-            orderBy: {
-              id: "asc",
-            },
-          },
-        },
-      });
-
-      if (topic) {
-        resolve(topic);
-      } else {
-        reject({ error: "Topic not found" });
       }
     } catch (error) {
       reject(error);

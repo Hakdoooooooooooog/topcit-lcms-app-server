@@ -3,7 +3,6 @@ import {
   CreateTopic,
   Topics,
   TopicsWithAllChapters,
-  TopicWithChapters,
   UpdateTopic,
 } from "../Controller/Topics";
 import { upload } from "../services/multer";
@@ -15,10 +14,9 @@ import { upload } from "../services/multer";
 export default (router: Router) => {
   // Topics
   router.get("/topics", Topics);
-  router.get("/topics/chapters", TopicsWithAllChapters);
 
   // Get all topics with chapters
-  router.get("/topics/chapters/:topic_id", TopicWithChapters);
+  router.get("/topics/chapters", TopicsWithAllChapters);
 
   router.post("/admin/topic/create", upload.none(), CreateTopic); // Create a new topic
   router.put("/admin/topic/update/:topic_id", UpdateTopic); // Update a topic
