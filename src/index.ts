@@ -25,6 +25,8 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 app.use("/", router());
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server is running on ${process.env.SERVER_URL}`);
-});
+export default app;
+
+// app.listen(process.env.PORT, () => {
+//   console.log(`Server is running on ${process.env.SERVER_URL}`);
+// });
