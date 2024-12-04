@@ -20,4 +20,10 @@ app.use(cookieParser());
 
 app.use("/", router());
 
+if (process.env.NODE_ENV === "development") {
+  app.listen(process.env.PORT, () => {
+    console.log(`Server is running on port ${process.env.PORT}`);
+  });
+}
+
 export default app;
