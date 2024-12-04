@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from "express";
+import express from "express";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
@@ -17,11 +17,6 @@ const corsOptions: CorsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
-
-// Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  res.status(500).send({ message: err.message, status: 500 });
-});
 
 app.use("/", router());
 

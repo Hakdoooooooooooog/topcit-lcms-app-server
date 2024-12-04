@@ -12,6 +12,10 @@ import { validateUserToken } from "../middleware";
 import { EditProfileSchema } from "../schema/User";
 
 export default (router: Router) => {
+  router.get("/health", (req, res) => {
+    res.status(200).send({ message: "Server is running", status: 200 });
+  });
+
   router.get("/user/profile", validateUserToken, userData);
   router.get("/user/progress", validateUserToken, userProgressTrack);
 
