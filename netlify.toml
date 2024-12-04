@@ -1,6 +1,4 @@
 [build]
-external_node_modules = ["express"]
-node_bundler = "esbuild"
 command = "npm run build"
 functions = "netlify/functions"
 publish = "dist"
