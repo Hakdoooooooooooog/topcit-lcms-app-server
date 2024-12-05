@@ -1,6 +1,6 @@
 [functions]
-  external_node_modules = ["express"]
-  node_bundler = "esbuild"
+external_node_modules = ["express"]
+node_bundler = "esbuild"
 
 [[redirects]]
 from = "/api/*"
@@ -11,5 +11,4 @@ status = 200
 command = "npm start" # Command to start your dev server
 targetPort = 3000
 port = 3350 # Port that the dev server will be listening on
-publish = "dist" # Folder with the static content for _redirect file
 
