@@ -119,6 +119,7 @@ export const setUserCookie = (res: any, token: string, title: string) => {
     path: "/",
     partitioned: true,
     expires: new Date(Date.now() + 1000 * 60 * 15), // 15 minutes
+    domain: process.env.CLIENT_URL,
   });
 };
 
