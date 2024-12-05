@@ -406,9 +406,19 @@ export const updateUserChapterProgress = async (
       return;
     }
 
-    res
-      .status(StatusCodes.OK)
-      .json({ message: "Chapter progress updated successfully" });
+    const updatedProgress = await getUserProgressByUserId(Number(userId));
+
+    if (!updatedProgress) {
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: "Error fetching updated progress" });
+      return;
+    }
+
+    res.status(StatusCodes.OK).json({
+      message: "Chapter progress updated successfully",
+      curr_chap_id: updatedProgress.user_progress?.curr_chap_id,
+    });
   } catch (err: any) {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)

@@ -4,7 +4,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "npx prisma generate && nodemon src/index.ts",
-    "build": "tsc -b && npx prisma generate"
+    "build": "tsc -b"
   },
   "keywords": [],
   "author": "Darenz Hicap",
