@@ -142,7 +142,7 @@ model user_quiz_attempts {
   quiz_id                      BigInt
   attempt_count                Int?                           @default(0)
   score                        Int?                           @default(0)
-  time_taken                   DateTime?                      @db.Timestamp(6)
+  time_taken                   DateTime?                      @db.Time(6)
   completed_at                 DateTime?                      @default(now()) @db.Timestamp(6)
   start_time                   DateTime?                      @db.Timestamp(6)
   end_time                     DateTime?                      @db.Timestamp(6)

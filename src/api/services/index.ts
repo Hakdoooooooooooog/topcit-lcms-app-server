@@ -115,7 +115,7 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
     secure: true,
     httpOnly: true,
-    sameSite: "none",
+    sameSite: "Lax",
     path: "/",
     partitioned: true,
     expires: new Date(Date.now() + 1000 * 60 * 30), // 30 minutes
