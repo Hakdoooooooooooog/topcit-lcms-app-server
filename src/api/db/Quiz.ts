@@ -146,39 +146,6 @@ export const updateExistingInitialQuizAttempt = async (
   });
 };
 
-// update to null initial quiz attempt start time if user exits quiz
-export const updateInitialQuizAttempt = async (
-  attemptId: number,
-  quizId: number,
-  userId: number
-): Promise<Error | { message: string }> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const result = await prisma.user_quiz_attempts.update({
-        where: {
-          id: attemptId,
-          AND: {
-            quiz_id: quizId,
-            user_id: userId,
-          },
-        },
-        data: {
-          start_time: null,
-          attempt_count: 0,
-        },
-      });
-
-      if (result) {
-        resolve({ message: "Quiz forfeited successfully" });
-      } else {
-        reject(new Error("Failed to update quiz attempt"));
-      }
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
-
 // Submit quiz attempt
 export const submitQuizAttempt = async (
   quizId: number,
