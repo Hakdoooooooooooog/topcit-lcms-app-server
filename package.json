@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "app.ts",
   "scripts": {
-    "start": "npx prisma generate && nodemon src/index.ts",
-    "build": "npx prisma generate && tsc -b"
+    "start": "node dist/src/index.js",
+    "dev": "npx prisma generate && nodemon src/index.ts",
+    "build": "tsc -b"
   },
   "keywords": [],
   "author": "Darenz Hicap",
