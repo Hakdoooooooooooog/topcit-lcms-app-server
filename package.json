@@ -4,7 +4,7 @@
   "main": "app.ts",
   "scripts": {
     "start": "npx prisma generate && nodemon src/index.ts",
-    "build": "npx prisma generate && npx tsc -b"
+    "build": "npx prisma generate && tsc -b"
   },
   "keywords": [],
   "author": "Darenz Hicap",
@@ -22,8 +22,7 @@
     "cookie-parser": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0",
-    "fs": "^0.0.1-security",
+    "express": "^4.21.2",
     "http-status-codes": "^2.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
