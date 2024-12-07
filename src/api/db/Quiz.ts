@@ -170,35 +170,32 @@ export const submitQuizAttempt = async (
           throw new Error("Quiz attempt not found");
         }
 
-        const getMultipleChoiceId =
-          await prisma.multiple_choice_options.findMany({
-            where: {
-              objective_question_id: {
+        const getMultipleChoiceId = await tx.multiple_choice_options.findMany({
+          where: {
+            objective_question_id: {
+              in: quizUserObjectiveAnswers.map((answer) => answer.question_id),
+            },
+            AND: {
+              option_text: {
                 in: quizUserObjectiveAnswers.map(
-                  (answer) => answer.question_id
+                  (answer) => answer.user_answer
                 ),
               },
-              AND: {
-                option_text: {
-                  in: quizUserObjectiveAnswers.map(
-                    (answer) => answer.user_answer
-                  ),
-                },
-              },
             },
-            select: {
-              id: true,
-              objective_question_id: true,
-              option_text: true,
-            },
-          });
+          },
+          select: {
+            id: true,
+            objective_question_id: true,
+            option_text: true,
+          },
+        });
 
         if (!getMultipleChoiceId) {
           throw new Error("Multiple choice options not found");
         }
 
         const createUserMultipleChoiceAnswers =
-          await prisma.user_multiple_choice_answers.createMany({
+          await tx.user_multiple_choice_answers.createMany({
             data: quizUserObjectiveAnswers.map((answer) => {
               return {
                 attempt_id: userQuizAttempt.id,
@@ -219,7 +216,7 @@ export const submitQuizAttempt = async (
         }
 
         const getUserMultipleChoiceAnswer =
-          await prisma.user_multiple_choice_answers.findMany({
+          await tx.user_multiple_choice_answers.findMany({
             where: {
               attempt_id: userQuizAttempt.id,
               AND: {
@@ -238,7 +235,7 @@ export const submitQuizAttempt = async (
         }
 
         const getMultipleChoiceCorrectAnswer =
-          await prisma.objective_questions.findMany({
+          await tx.objective_questions.findMany({
             where: {
               quiz_id: quizId,
               question_type: "multiple_choice",
@@ -253,7 +250,7 @@ export const submitQuizAttempt = async (
           throw new Error("Multiple choice correct answers not found");
         }
 
-        const getUserAnswer = await prisma.multiple_choice_options.findMany({
+        const getUserAnswer = await tx.multiple_choice_options.findMany({
           where: {
             id: {
               in: getUserMultipleChoiceAnswer
