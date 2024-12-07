@@ -20,4 +20,11 @@ app.use(cookieParser());
 
 app.use("/", router());
 
+// Start server
+if (process.env.NODE_ENV === "production") {
+  app.listen(3300, () => {
+    console.log("Server is running on port 3300");
+  });
+}
+
 export default app;

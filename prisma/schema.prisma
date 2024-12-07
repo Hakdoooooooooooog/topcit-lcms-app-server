@@ -52,7 +52,6 @@ model objective_questions {
   correct_answer               String?
   multiple_choice_options      multiple_choice_options[]
   quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "objective_questions_ibfk_1")
-  user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
 }
 
@@ -89,29 +88,14 @@ model user_completed_chapters {
   @@index([user_id], map: "idx_user_completed_chapters_user_id")
 }
 
-model user_identification_answers {
-  id                  BigInt              @id @default(autoincrement())
-  attempt_id          BigInt
-  question_id         BigInt
-  user_id             BigInt
-  user_answer         String
-  is_correct          Boolean?
-  user_quiz_attempts  user_quiz_attempts  @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_1")
-  objective_questions objective_questions @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_2")
-  users               users               @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_identification_answers_ibfk_3")
-
-  @@index([attempt_id], map: "idx_user_identification_answers_attempt_id")
-  @@index([question_id], map: "idx_user_identification_answers_question_id")
-  @@index([user_id], map: "idx_user_identification_answers_user_id")
-}
-
 model user_multiple_choice_answers {
   id                      BigInt                   @id @default(autoincrement())
   attempt_id              BigInt
   question_id             BigInt
   user_id                 BigInt
   user_selected_option_id BigInt?
-  is_correct              Boolean?
+  is_correct              Boolean?                 @default(false)
+  attemptNumber           Int?                     @db.SmallInt
   user_quiz_attempts      user_quiz_attempts       @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_1")
   objective_questions     objective_questions      @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_2")
   users                   users                    @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_4")
@@ -142,10 +126,9 @@ model user_quiz_attempts {
   quiz_id                      BigInt                         @unique
   attempt_count                Int?                           @default(0)
   score                        Int?                           @default(0)
-  time_taken                   DateTime?                      @db.Time(6)
-  completed_at                 DateTime?                      @default(now()) @db.Timestamp(6)
+  completed_at                 DateTime?                      @db.Timestamp(6)
   start_time                   DateTime?                      @db.Timestamp(6)
-  user_identification_answers  user_identification_answers[]
+  timeTaken                    DateTime?                      @db.Time(6)
   user_multiple_choice_answers user_multiple_choice_answers[]
   quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_2")
   users                        users                          @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_1")
@@ -174,7 +157,6 @@ model users {
   created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
   role                         String                         @default("user")
   user_completed_chapters      user_completed_chapters[]
-  user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
   user_progress                user_progress?
   user_quiz_attempts           user_quiz_attempts?

@@ -1,8 +1,12 @@
 import { Router } from "express";
-import { ChapterWithQuiz } from "../Controller/Quiz";
+import { ChapterWithQuiz, StartQuiz, SubmitQuiz } from "../Controller/Quiz";
 
 export default (router: Router) => {
   router.get("/quizzes/topic", ChapterWithQuiz);
 
-  router.post("/quizzes/submit");
+  // Initial quiz attempt
+  router.post("/quizzes/start", StartQuiz);
+
+  // Submit quiz
+  router.post("/quizzes/submit", SubmitQuiz);
 };
