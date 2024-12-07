@@ -5,7 +5,5 @@ to = "/.netlify/functions/api/:splat"
 status = 200
 
 [dev]
-command = "npm start" # Command to start your dev server
-targetPort = 3000
-port = 3350 # Port that the dev server will be listening on
+port = 3300 # Port that the dev server will be listening on
 

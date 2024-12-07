@@ -122,6 +122,18 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   });
 };
 
+export const formatTime = (time: number) => {
+  const hrs = Math.floor(time / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.floor((time % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (time % 60).toString().padStart(2, "0");
+
+  return `${hrs}:${minutes}:${seconds}`;
+};
+
 export const formatPDFFilename = ({
   chapterFile,
   topicId,
