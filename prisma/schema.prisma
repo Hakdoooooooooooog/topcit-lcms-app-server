@@ -56,23 +56,25 @@ model objective_questions {
 }
 
 model quiz {
-  id                  BigInt                @id @default(autoincrement())
-  topic_id            BigInt
-  title               String
-  quiz_type           String                @default("objective")
-  max_attempts        Int?                  @default(3)
-  created_at          DateTime?             @default(now()) @db.Timestamp(6)
-  objective_questions objective_questions[]
-  topics              topics                @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "quiz_ibfk_1")
-  user_quiz_attempts  user_quiz_attempts[]
+  id                     BigInt                   @id @default(autoincrement())
+  topic_id               BigInt
+  title                  String
+  quiz_type              String                   @default("objective")
+  max_attempts           Int?                     @default(3)
+  created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  objective_questions    objective_questions[]
+  topics                 topics                   @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "quiz_ibfk_1")
+  user_completed_quizzes user_completed_quizzes[]
+  user_quiz_attempts     user_quiz_attempts[]
 }
 
 model topics {
-  id          BigInt     @id @default(autoincrement())
-  topictitle  String?
-  description String?
-  chapters    chapters[]
-  quiz        quiz[]
+  id                      BigInt                    @id @default(autoincrement())
+  topictitle              String?
+  description             String?
+  chapters                chapters[]
+  quiz                    quiz[]
+  user_completed_chapters user_completed_chapters[]
 }
 
 model user_completed_chapters {
@@ -81,7 +83,9 @@ model user_completed_chapters {
   chapter_id        BigInt
   completion_status String?   @default("not_started")
   completed_at      DateTime? @default(now()) @db.Timestamp(6)
+  topic_id          BigInt
   chapters          chapters  @relation(fields: [chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_2")
+  topics            topics    @relation(fields: [topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users             users     @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_1")
 
   @@index([chapter_id], map: "idx_user_completed_chapters_chapter_id")
@@ -157,6 +161,7 @@ model users {
   created_at                   DateTime?                      @default(now()) @db.Timestamp(6)
   role                         String                         @default("user")
   user_completed_chapters      user_completed_chapters[]
+  user_completed_quizzes       user_completed_quizzes?
   user_multiple_choice_answers user_multiple_choice_answers[]
   user_progress                user_progress?
   user_quiz_attempts           user_quiz_attempts?
@@ -172,4 +177,13 @@ model prisma_migrations {
   rolled_back_at      DateTime?
   started_at          DateTime  @default(dbgenerated("CURRENT_TIMESTAMP(3)"))
   applied_steps_count Int       @default(0)
+}
+
+model user_completed_quizzes {
+  id           Int      @id @default(autoincrement())
+  quiz_id      BigInt
+  user_id      BigInt   @unique
+  completed_at DateTime @db.Timestamp(6)
+  quiz         quiz     @relation(fields: [quiz_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users        users    @relation(fields: [user_id], references: [userid], onDelete: NoAction, onUpdate: NoAction)
 }

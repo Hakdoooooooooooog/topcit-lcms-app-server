@@ -166,20 +166,81 @@ export function createUser(
   });
 }
 
-export function createUserCompleteChapterProgress(
-  userId: number,
-  chapterId: number
+export function updateUserProgressByUserId(
+  user_id: number,
+  topic_id: number,
+  progress: Omit<user_progress, "id" | "user_id">
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
-    const userProgress = await prisma.user_completed_chapters.create({
-      data: {
-        user_id: userId,
-        chapter_id: chapterId,
-        completion_status: "completed",
-      },
+    const updateProgressTransaction = await prisma.$transaction(async (tx) => {
+      const totalChapters = await tx.chapters.count({
+        where: {
+          topic_id: topic_id,
+        },
+      });
+
+      if (!totalChapters) {
+        reject({ message: "Topic not found" });
+      }
+
+      const addCompletedChapter = await tx.user_completed_chapters.create({
+        data: {
+          user_id: user_id,
+          chapter_id: progress.curr_chap_id ?? 0,
+          topic_id: progress.curr_topic_id ?? 0,
+          completion_status: "completed",
+        },
+      });
+
+      if (!addCompletedChapter) {
+        reject({ message: "Error adding completed chapter" });
+      }
+
+      if (progress.curr_chap_id === totalChapters) {
+        progress.curr_chap_id = 1;
+        progress.curr_topic_id = BigInt(topic_id + 1);
+      }
+
+      const completedChapters = await tx.user_completed_chapters.count({
+        where: {
+          user_id: user_id,
+          completion_status: "completed",
+        },
+      });
+
+      const completedQuizzes = await tx.user_completed_quizzes.count({
+        where: {
+          user_id: user_id,
+          AND: {
+            completed_at: {
+              not: undefined,
+            },
+          },
+        },
+      });
+
+      const userProgress = await tx.user_progress.upsert({
+        where: {
+          user_id: user_id,
+        },
+        update: {
+          ...progress,
+          curr_chap_id: completedChapters + 1,
+          curr_topic_id: progress.curr_topic_id,
+          completed_lessons: completedChapters,
+          completed_quizzes: completedQuizzes,
+        },
+        create: {
+          user_id: user_id,
+          ...progress,
+          completed_lessons: 0,
+        },
+      });
+
+      return userProgress;
     });
 
-    if (userProgress) {
+    if (updateProgressTransaction) {
       resolve({ message: "User progress updated successfully" });
     } else {
       reject({ message: "Error updating user progress" });
@@ -189,65 +250,50 @@ export function createUserCompleteChapterProgress(
 
 export function getUserProgressByUserId(userId: number): Promise<UserProgress> {
   return new Promise(async (resolve, reject) => {
-    const userProgress = await prisma.users.findUnique({
-      select: {
-        userid: true,
-        email: true,
-        user_progress: {
-          select: {
-            completed_lessons: true,
-            completed_quizzes: true,
-            curr_chap_id: true,
-            curr_topic_id: true,
-            curr_quiz_id: true,
-          },
+    const userProgress = await prisma.$transaction(async (tx) => {
+      const userProgressSet = await tx.user_progress.upsert({
+        where: {
+          user_id: userId,
         },
-        user_completed_chapters: true,
-      },
-      where: {
-        userid: userId,
-      },
+        update: {},
+        create: {
+          user_id: userId,
+        },
+      });
+
+      if (!userProgressSet) {
+        reject({ message: "Error setting user progress" });
+      }
+
+      const userProgress = await tx.users.findUnique({
+        where: {
+          userid: userId,
+        },
+        select: {
+          userid: true,
+          username: true,
+          email: true,
+          user_progress: {
+            select: {
+              curr_chap_id: true,
+              curr_topic_id: true,
+              curr_quiz_id: true,
+              completed_lessons: true,
+              completed_quizzes: true,
+            },
+          },
+          user_completed_chapters: true,
+          user_completed_quizzes: true,
+        },
+      });
+
+      return userProgress;
     });
 
     if (userProgress) {
       resolve(userProgress);
     } else {
       reject({ message: "User progress not found" });
-    }
-  });
-}
-
-export function updateUserProgressByUserId(
-  user_id: number,
-  progress: Omit<user_progress, "id" | "user_id">
-): Promise<{ message: string }> {
-  return new Promise(async (resolve, reject) => {
-    const updateProgressTransaction = await prisma.$transaction([
-      prisma.user_progress.update({
-        where: {
-          user_id: user_id,
-        },
-        data: progress,
-      }),
-      prisma.user_progress.update({
-        where: {
-          user_id: user_id,
-        },
-        data: {
-          completed_lessons: await prisma.user_completed_chapters.count({
-            where: {
-              user_id: user_id,
-              completion_status: "completed",
-            },
-          }),
-        },
-      }),
-    ]);
-
-    if (updateProgressTransaction) {
-      resolve({ message: "User progress updated successfully" });
-    } else {
-      reject({ message: "Error updating user progress" });
     }
   });
 }

@@ -66,7 +66,7 @@ export const getQuizUserAttempt = async (
 ): Promise<Error | user_quiz_attempts> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.user_quiz_attempts.findFirst({
+      const result = await prisma.user_quiz_attempts.findUnique({
         where: {
           user_id: userId,
           AND: {
@@ -206,7 +206,7 @@ export const submitQuizAttempt = async (
                     option.option_text === answer.user_answer &&
                     Number(option.objective_question_id) === answer.question_id
                 )?.id,
-                attemptNumber: userQuizAttempt.attempt_count,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               };
             }),
           });
@@ -221,7 +221,7 @@ export const submitQuizAttempt = async (
               attempt_id: userQuizAttempt.id,
               AND: {
                 user_id: userId,
-                attemptNumber: userQuizAttempt.attempt_count,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
             },
 
@@ -283,7 +283,7 @@ export const submitQuizAttempt = async (
                     },
                   },
                 },
-                attemptNumber: userQuizAttempt.attempt_count,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
             },
             data: {
@@ -302,7 +302,7 @@ export const submitQuizAttempt = async (
               attempt_id: userQuizAttempt.id,
               AND: {
                 user_id: userId,
-                attemptNumber: userQuizAttempt.attempt_count,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
             },
 
@@ -328,7 +328,9 @@ export const submitQuizAttempt = async (
             score: userCorrectAnswers.filter((answer) => answer.is_correct)
               .length,
             completed_at: new Date(),
-            timeTaken: new Date(),
+            timeTaken: new Date(
+              new Date().getTime() - userQuizAttempt.start_time.getTime()
+            ),
             attempt_count: {
               increment: 1,
             },
@@ -337,6 +339,45 @@ export const submitQuizAttempt = async (
 
         if (!userScore) {
           throw new Error("Failed to submit quiz attempt");
+        }
+
+        const upsertUserCompletedQuiz = await tx.user_completed_quizzes.upsert({
+          where: {
+            user_id: userQuizAttempt.user_id,
+            quiz_id: quizId,
+          },
+          create: {
+            user_id: userQuizAttempt.user_id,
+            quiz_id: quizId,
+            completed_at:
+              (
+                await tx.user_quiz_attempts.findUnique({
+                  where: {
+                    id: userQuizAttempt.user_id,
+                  },
+                  select: {
+                    completed_at: true,
+                  },
+                })
+              )?.completed_at ?? new Date(),
+          },
+          update: {
+            completed_at:
+              (
+                await tx.user_quiz_attempts.findUnique({
+                  where: {
+                    id: userQuizAttempt.user_id,
+                  },
+                  select: {
+                    completed_at: true,
+                  },
+                })
+              )?.completed_at ?? new Date(),
+          },
+        });
+
+        if (!upsertUserCompletedQuiz) {
+          throw new Error("Failed to update user completed quizzes");
         }
 
         return { message: "Quiz attempt submitted successfully" };

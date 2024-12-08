@@ -1,5 +1,6 @@
 import {
   user_completed_chapters,
+  user_completed_quizzes,
   user_progress,
   users,
 } from "../services/prisma";
@@ -26,4 +27,5 @@ export type UserProgressData = {
         user_completed_chapters: user_completed_chapters[];
       })
     | null;
+  userCompletedQuizzes: user_completed_quizzes[];
 };
