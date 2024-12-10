@@ -35,9 +35,11 @@ export const verifyAndGenerateUserExpiredToken = async (
 
     res.status(StatusCodes.OK).json({
       message: result.message,
-      userId: userId,
-      isAuth: isAuth,
-      role: userRole,
+      userData: {
+        userId: userId,
+        isAuth: isAuth,
+        role: userRole,
+      },
     });
   } catch (error: any) {
     if (error.message === "Access token expired") {
