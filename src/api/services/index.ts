@@ -117,10 +117,9 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
     secure: true,
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    sameSite: "none",
     path: "/",
     partitioned: true,
-    Domain: process.env.NODE_ENV === "production" ? undefined : "netlify.app",
   });
 };
 
