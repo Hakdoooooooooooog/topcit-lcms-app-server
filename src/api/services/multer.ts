@@ -58,7 +58,6 @@ export const uploadFile =
         res.status(400).send({ message: err.message });
         return;
       } else if (err instanceof Error) {
-        console.log(err);
         res.status(400).send({ message: err.message });
         return;
       }

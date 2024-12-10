@@ -20,6 +20,10 @@ app.use(cookieParser());
 
 app.use("/", router());
 
+app.get("/health", (req, res) => {
+  res.status(200).send({ message: "Server is running", status: 200 });
+});
+
 // Start server
 if (process.env.NODE_ENV === "production") {
   app.listen(3300, () => {

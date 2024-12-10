@@ -30,11 +30,11 @@ export const comparePassword = async (password: string, hash: string) => {
 export const generateRefreshToken = async (user: users): Promise<string> => {
   return new Promise((resolve, reject) => {
     jwt.sign(
-      { user: user },
+      { user: serializeBigInt(user) },
       process.env.JWT_REFRESH_TOKEN_SECRET as string,
       (err: any, token: any) => {
         if (err) {
-          reject(err);
+          reject(new Error("Error generating refresh token: " + err));
         }
         resolve(token);
       }
@@ -60,11 +60,11 @@ export const generateAuthenticatedToken = async ({
       { userId: userId, role: role, refreshToken },
       process.env.JWT_ACCESS_TOKEN_SECRET as string,
       {
-        expiresIn: "5m",
+        expiresIn: "15m",
       },
       (err, token) => {
         if (err) {
-          reject({ message: "Error generating access token" });
+          reject(new Error("Error generating access token:" + err));
         }
         resolve(token as string);
       }
@@ -75,24 +75,26 @@ export const generateAuthenticatedToken = async ({
 export const checkUserRefreshTokenValidity = async (
   expires_at: Date,
   currentTime: Date
-): Promise<any> => {
+): Promise<null> => {
   return new Promise((resolve, reject) => {
     if (currentTime > expires_at) {
-      reject({ message: "Refresh token expired" });
+      reject(new Error("Refresh token expired"));
     }
 
-    resolve({ message: "Refresh token valid" });
+    resolve(null);
   });
 };
 
-export const verifyAccessToken = async (accessToken: string): Promise<any> => {
+export const verifyAccessToken = async (
+  accessToken: string
+): Promise<{ message: string }> => {
   return new Promise((resolve, reject) => {
     jwt.verify(
       accessToken,
       process.env.JWT_ACCESS_TOKEN_SECRET as string,
       (err) => {
         if (err) {
-          reject({ message: "Access token expired" });
+          reject(new Error("Access token expired"));
         }
         resolve({ message: "Access token valid" });
       }
@@ -116,10 +118,9 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
     secure: true,
     httpOnly: true,
-    sameSite: "None",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
     partitioned: true,
-    expires: new Date(Date.now() + 1000 * 60 * 30), // 30 minutes
   });
 };
 

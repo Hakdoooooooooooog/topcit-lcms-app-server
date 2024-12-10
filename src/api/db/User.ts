@@ -27,7 +27,7 @@ export async function getUserCredentials(
     });
 
     if (!userData) {
-      reject({ message: "Invalid username or password" });
+      reject(new Error("Invalid username or password"));
     } else {
       const isPasswordMatch = await comparePassword(
         password,
@@ -37,7 +37,7 @@ export async function getUserCredentials(
       if (isPasswordMatch) {
         resolve(userData);
       } else {
-        reject({ message: "Invalid username or password" });
+        reject(new Error("Invalid username or password"));
       }
     }
   });
@@ -56,13 +56,13 @@ export async function getUserById(
     if (userData) {
       resolve(userData);
     } else {
-      reject({ message: "User not found" });
+      reject(new Error("User not found"));
     }
   });
 }
 export async function getUserRefreshToken(
   userId: number
-): Promise<Pick<user_refresh_tokens, "id" | "token" | "expires_at"> | null> {
+): Promise<Pick<user_refresh_tokens, "id" | "token" | "expires_at">> {
   return new Promise(async (resolve, reject) => {
     const refreshToken = await prisma.user_refresh_tokens.findFirst({
       select: {
@@ -78,7 +78,7 @@ export async function getUserRefreshToken(
     if (refreshToken) {
       resolve(refreshToken);
     } else {
-      resolve(null);
+      reject(new Error("Refresh token not found"));
     }
   });
 }
@@ -96,6 +96,9 @@ export async function updateUserRefreshTokenByUserID(
     const updateToken = await prisma.user_refresh_tokens.update({
       where: {
         id: userToken.id,
+        AND: {
+          user_id: userId,
+        },
       },
       data: {
         token: refreshToken,
@@ -107,7 +110,7 @@ export async function updateUserRefreshTokenByUserID(
     if (updateToken) {
       resolve({ message: "Refresh token updated successfully" });
     } else {
-      reject({ message: "Error updating refresh token" });
+      reject(new Error("Error updating refresh token"));
     }
   });
 }

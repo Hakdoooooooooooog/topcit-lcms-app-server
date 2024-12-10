@@ -91,42 +91,42 @@ export const userLogin = async (req: Request, res: Response) => {
       })
     );
   } catch (err: any) {
-    if (err?.message === "Refresh token expired") {
-      const data = await getUserCredentials(email, password);
-      const newRefreshToken = await generateRefreshToken(data);
+    if (err.message === "Refresh token expired") {
+      try {
+        const data = await getUserCredentials(email, password);
+        const newRefreshToken = await generateRefreshToken(data);
 
-      // Update refresh token in database
-      const tokenData = await updateUserRefreshTokenByUserID(
-        Number(data.userid),
-        newRefreshToken
-      );
+        // Update refresh token in database
+        await updateUserRefreshTokenByUserID(
+          Number(data.userid),
+          newRefreshToken
+        );
 
-      if (!tokenData) {
-        res
-          .status(StatusCodes.BAD_REQUEST)
-          .json({ message: "Error updating token" });
-        return;
-      }
-
-      // Generate access token and set cookie
-      const accessToken = await generateAuthenticatedToken({
-        userId: Number(data.userid),
-        role: data.role,
-        refreshToken: newRefreshToken,
-      });
-      setUserCookie(res, accessToken, "accessToken");
-
-      res.status(StatusCodes.OK).json(
-        serializeBigInt({
-          message: "Login successfully",
-          userId: data.userid,
+        // Generate access token and set cookie
+        const accessToken = await generateAuthenticatedToken({
+          userId: Number(data.userid),
           role: data.role,
-        })
-      );
-      return;
-    }
+          refreshToken: newRefreshToken,
+        });
+        setUserCookie(res, accessToken, "accessToken");
 
-    res.status(StatusCodes.BAD_REQUEST).json({ message: err.message });
+        res.status(StatusCodes.OK).json(
+          serializeBigInt({
+            message: "Login successfully",
+            userId: data.userid,
+            role: data.role,
+          })
+        );
+      } catch (error: any) {
+        res
+          .status(StatusCodes.INTERNAL_SERVER_ERROR)
+          .json({ message: error.message });
+      }
+    } else {
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ message: err.message });
+    }
   } finally {
     res.end();
   }
@@ -239,71 +239,6 @@ export const userProgressTrack = async (req: Request, res: Response) => {
   }
 };
 
-export const userRefreshTokenAccess = async (req: Request, res: Response) => {
-  const { userId, isAuth } = req.body;
-
-  if (!isAuth) {
-    res.sendStatus(StatusCodes.UNAUTHORIZED);
-    return;
-  }
-
-  if (!userId) {
-    res.sendStatus(StatusCodes.BAD_REQUEST);
-    return;
-  }
-
-  try {
-    const data = await Promise.all([
-      getUserById(Number(userId)),
-      getUserRefreshToken(Number(userId)),
-    ]).then((data) => {
-      return {
-        user: data[0],
-        refreshToken: data[1],
-      };
-    });
-
-    if (!data.user) {
-      res.sendStatus(StatusCodes.NOT_FOUND);
-      return;
-    }
-
-    if (!data.refreshToken) {
-      res.sendStatus(StatusCodes.UNAUTHORIZED);
-      return;
-    }
-
-    const tokenValidity = await checkUserRefreshTokenValidity(
-      data.refreshToken.expires_at,
-      new Date()
-    );
-
-    if (tokenValidity.message === "Refresh token valid") {
-      const newAccessToken = await generateAuthenticatedToken({
-        userId: Number(data.user.userid),
-        role: data.user.role,
-        refreshToken: data.refreshToken.token,
-      });
-
-      setUserCookie(res, newAccessToken, "accessToken");
-      res.sendStatus(StatusCodes.OK);
-      return;
-    }
-
-    res.sendStatus(StatusCodes.UNAUTHORIZED);
-  } catch (err: any) {
-    if (err.message === "Refresh token expired") {
-      res
-        .status(StatusCodes.UNAUTHORIZED)
-        .json({ message: "Refresh token expired" });
-    } else {
-      res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
-    }
-  } finally {
-    res.end();
-  }
-};
-
 export const updateUserData = async (req: Request, res: Response) => {
   const { username } = req.body;
   const { userId, isAuth } = req.query;
@@ -338,7 +273,6 @@ export const updateUserData = async (req: Request, res: Response) => {
     res.status(StatusCodes.OK).json({ message: "User updated" });
   } catch (err: any) {
     res.sendStatus(StatusCodes.INTERNAL_SERVER_ERROR);
-    console.log(err);
   } finally {
     res.end();
   }
