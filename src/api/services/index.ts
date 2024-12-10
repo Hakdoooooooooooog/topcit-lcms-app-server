@@ -120,7 +120,6 @@ export const setUserCookie = (res: any, token: string, title: string) => {
     httpOnly: true,
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
-    partitioned: true,
   });
 };
 
