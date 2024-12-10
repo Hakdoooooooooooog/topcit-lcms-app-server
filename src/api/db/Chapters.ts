@@ -16,7 +16,7 @@ export const getChapterByChapterId = async (
         reject(new Error("Chapter not found"));
       }
     } catch (error) {
-      reject(error);
+      reject(new Error("Error fetching chapter: " + error));
     }
   });
 };
@@ -38,7 +38,7 @@ export const getChapterPDFByChapterId = async (
         reject(new Error("Chapter not found"));
       }
     } catch (error) {
-      reject(error);
+      reject(new Error("Error fetching chapter files: " + error));
     }
   });
 };
@@ -101,7 +101,7 @@ export const updateChapterContentByChapterId = async (
         reject(new Error("Chapter not found"));
       }
     } catch (error) {
-      reject(error);
+      reject(new Error("Error updating chapter: " + error));
     }
   });
 };
@@ -128,7 +128,7 @@ export const updateChapterPDFByChapterId = async (
         reject(new Error("Chapter not found"));
       }
     } catch (error) {
-      reject(error);
+      reject(new Error("Error updating chapter files: " + error));
     }
   });
 };
