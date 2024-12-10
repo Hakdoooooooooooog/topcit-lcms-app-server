@@ -73,8 +73,7 @@ export const createChapter = async (
         reject("Error creating chapter");
       }
     } catch (error) {
-      console.log(error);
-      reject(error);
+      reject(new Error("Error creating chapter: " + error));
     }
   });
 };
