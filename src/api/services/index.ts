@@ -120,7 +120,7 @@ export const setUserCookie = (res: any, token: string, title: string) => {
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
     partitioned: true,
-    Domain: process.env.NODE_ENV === "production" ? undefined : ".netlify.app",
+    Domain: process.env.NODE_ENV === "production" ? undefined : "netlify.app",
   });
 };
 
