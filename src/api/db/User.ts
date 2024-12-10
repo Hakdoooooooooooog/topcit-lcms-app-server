@@ -199,7 +199,18 @@ export function updateUserProgressByUserId(
         reject({ message: "Error adding completed chapter" });
       }
 
-      if (progress.curr_chap_id === totalChapters) {
+      const userCompletedChapterPerTopic =
+        await tx.user_completed_chapters.count({
+          where: {
+            user_id: user_id,
+            AND: {
+              topic_id: progress.curr_topic_id ? progress.curr_topic_id : 0,
+              completion_status: "completed",
+            },
+          },
+        });
+
+      if (userCompletedChapterPerTopic === totalChapters) {
         progress.curr_chap_id = 1;
         progress.curr_topic_id = BigInt(topic_id + 1);
       }
