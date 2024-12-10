@@ -11,7 +11,7 @@ export interface QuizWithObjectiveQuestions extends quiz {
 
 export const getChapterWithQuizAndObjectiveQuestion = async (
   userId: number
-): Promise<QuizWithObjectiveQuestions[] | Error> => {
+): Promise<QuizWithObjectiveQuestions[]> => {
   return new Promise(async (resolve, reject) => {
     try {
       const result = await prisma.quiz.findMany({
