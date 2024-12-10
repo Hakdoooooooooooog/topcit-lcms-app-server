@@ -35,41 +35,6 @@ export const userLogin = async (req: Request, res: Response) => {
 
     const refreshTokenData = await getUserRefreshToken(Number(userData.userid));
 
-    // Check if refresh token exists
-    if (refreshTokenData === null) {
-      const refreshToken = await generateRefreshToken(
-        serializeBigInt(userData)
-      );
-
-      // Create refresh token in database
-      const tokenData = await createUserRefreshToken(
-        Number(userData.userid),
-        refreshToken
-      );
-
-      if (!tokenData) {
-        res.status(400).json({ message: "Error creating token" });
-        return;
-      }
-
-      // Generate access token and set cookie
-      const accessToken = await generateAuthenticatedToken({
-        userId: Number(userData.userid),
-        role: userData.role,
-        refreshToken,
-      });
-      setUserCookie(res, accessToken, "accessToken");
-
-      res.status(StatusCodes.OK).json(
-        serializeBigInt({
-          message: "Login successfully",
-          userId: userData.userid,
-          role: userData.role,
-        })
-      );
-      return;
-    }
-
     await checkUserRefreshTokenValidity(
       refreshTokenData.expires_at,
       new Date()
@@ -115,6 +80,45 @@ export const userLogin = async (req: Request, res: Response) => {
             message: "Login successfully",
             userId: data.userid,
             role: data.role,
+          })
+        );
+      } catch (error: any) {
+        res
+          .status(StatusCodes.INTERNAL_SERVER_ERROR)
+          .json({ message: error.message });
+      }
+    } else if (err.message === "Refresh token not found") {
+      try {
+        const userData = await getUserCredentials(email, password);
+
+        const refreshToken = await generateRefreshToken(
+          serializeBigInt(userData)
+        );
+
+        // Create refresh token in database
+        const tokenData = await createUserRefreshToken(
+          Number(userData.userid),
+          refreshToken
+        );
+
+        if (!tokenData) {
+          res.status(400).json({ message: "Error creating token" });
+          return;
+        }
+
+        // Generate access token and set cookie
+        const accessToken = await generateAuthenticatedToken({
+          userId: Number(userData.userid),
+          role: userData.role,
+          refreshToken,
+        });
+        setUserCookie(res, accessToken, "accessToken");
+
+        res.status(StatusCodes.OK).json(
+          serializeBigInt({
+            message: "Login successfully",
+            userId: userData.userid,
+            role: userData.role,
           })
         );
       } catch (error: any) {
