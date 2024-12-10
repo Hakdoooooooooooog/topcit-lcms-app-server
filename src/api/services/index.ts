@@ -1,6 +1,5 @@
 import { users } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { format } from "date-fns-tz";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import path from "path";
 
@@ -118,8 +117,10 @@ export const setUserCookie = (res: any, token: string, title: string) => {
   res.cookie(title, token, {
     secure: true,
     httpOnly: true,
-    sameSite: "none",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
+    partitioned: true,
+    Domain: process.env.NODE_ENV === "production" ? undefined : ".netlify.app",
   });
 };
 
