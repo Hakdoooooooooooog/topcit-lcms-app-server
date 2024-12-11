@@ -387,22 +387,34 @@ export const submitQuizAttempt = async (
             throw new Error("Failed to update user completed quizzes");
           }
 
-          const userCompletedQuizzes = await tx.user_completed_quizzes.count({
+          const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
             where: {
-              user_id: userQuizAttempt.user_id,
+              user_id: userId,
+              quiz_id: quizId,
+            },
+            update: {
+              completed_at: new Date(),
+            },
+            create: {
+              user_id: userId,
+              quiz_id: quizId,
+              completed_at: new Date(),
             },
           });
 
           if (!userCompletedQuizzes) {
-            throw new Error("User completed quizzes not found");
+            throw new Error("Failed to update user completed quizzes");
           }
 
-          const userProgressSet = await tx.user_progress.update({
+          const userProgressSet = await tx.user_progress.upsert({
             where: {
               user_id: userId,
             },
-            data: {
-              completed_quizzes: userCompletedQuizzes,
+            create: {
+              user_id: userId,
+              curr_quiz_id: quizId,
+            },
+            update: {
               curr_quiz_id: quizId,
             },
           });
