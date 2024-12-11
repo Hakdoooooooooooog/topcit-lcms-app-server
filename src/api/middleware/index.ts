@@ -5,6 +5,7 @@ import {
   checkUserRefreshTokenValidity,
   decodeAccessToken,
   generateAuthenticatedToken,
+  serializeBigInt,
   setUserCookie,
   verifyAccessToken,
 } from "../services";
@@ -63,11 +64,11 @@ export const verifyAndGenerateUserExpiredToken = async (
 
         res.status(StatusCodes.OK).json({
           message: "Access token refreshed",
-          userData: {
+          userData: serializeBigInt({
             userId: userData.userid,
             isAuth: isAuth as boolean,
             role: userData.role,
-          },
+          }),
         });
       } catch (error: any) {
         if (error.message === "Refresh token expired") {
