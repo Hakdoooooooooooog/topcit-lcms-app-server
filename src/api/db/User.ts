@@ -211,7 +211,7 @@ export function updateUserProgressByUserId(
         });
 
       if (userCompletedChapterPerTopic === totalChapters) {
-        progress.curr_chap_id = 1;
+        progress.curr_chap_id = BigInt(1);
         progress.curr_topic_id = BigInt(topic_id + 1);
       }
 
@@ -219,17 +219,6 @@ export function updateUserProgressByUserId(
         where: {
           user_id: user_id,
           completion_status: "completed",
-        },
-      });
-
-      const completedQuizzes = await tx.user_completed_quizzes.count({
-        where: {
-          user_id: user_id,
-          AND: {
-            completed_at: {
-              not: undefined,
-            },
-          },
         },
       });
 
@@ -242,7 +231,6 @@ export function updateUserProgressByUserId(
           curr_chap_id: completedChapters + 1,
           curr_topic_id: progress.curr_topic_id,
           completed_lessons: completedChapters,
-          completed_quizzes: completedQuizzes,
         },
         create: {
           user_id: user_id,

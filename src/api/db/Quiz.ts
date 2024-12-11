@@ -380,6 +380,30 @@ export const submitQuizAttempt = async (
           throw new Error("Failed to update user completed quizzes");
         }
 
+        const userCompletedQuizzes = await tx.user_completed_quizzes.count({
+          where: {
+            user_id: userQuizAttempt.user_id,
+          },
+        });
+
+        if (!userCompletedQuizzes) {
+          throw new Error("User completed quizzes not found");
+        }
+
+        const userProgressSet = await tx.user_progress.update({
+          where: {
+            user_id: userId,
+          },
+          data: {
+            completed_quizzes: userCompletedQuizzes,
+            curr_quiz_id: quizId,
+          },
+        });
+
+        if (!userProgressSet) {
+          throw new Error("Error setting user progress");
+        }
+
         return { message: "Quiz attempt submitted successfully" };
       });
 
