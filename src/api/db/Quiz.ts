@@ -49,13 +49,9 @@ export const getChapterWithQuizAndObjectiveQuestion = async (
         },
       });
 
-      if (result) {
-        resolve(result);
-      } else {
-        reject(new Error("Chapter not found"));
-      }
-    } catch (error) {
-      reject(error);
+      resolve(result);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
     }
   });
 };
@@ -63,7 +59,7 @@ export const getChapterWithQuizAndObjectiveQuestion = async (
 export const getQuizUserAttempt = async (
   quizId: number,
   userId: number
-): Promise<Error | user_quiz_attempts> => {
+): Promise<user_quiz_attempts> => {
   return new Promise(async (resolve, reject) => {
     try {
       const result = await prisma.user_quiz_attempts.findUnique({
@@ -81,7 +77,7 @@ export const getQuizUserAttempt = async (
         reject(new Error("Quiz attempt not found"));
       }
     } catch (error: any) {
-      reject(error);
+      reject(new Error("Failed to get quiz attempt: " + error.message));
     }
   });
 };
@@ -91,10 +87,10 @@ export const initialQuizAttempt = async (
   quizId: number,
   userId: number,
   startedAt: Date
-): Promise<Error | { message: string }> => {
+): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.user_quiz_attempts.create({
+      await prisma.user_quiz_attempts.create({
         data: {
           quiz_id: quizId,
           user_id: userId,
@@ -102,18 +98,14 @@ export const initialQuizAttempt = async (
         },
       });
 
-      if (result) {
-        resolve({ message: "Quiz attempt started successfully" });
-      } else {
-        reject(new Error("Failed to start quiz attempt"));
-      }
-    } catch (error) {
-      reject(error);
+      resolve({ message: "Quiz attempt started successfully" });
+    } catch (error: any) {
+      reject(new Error("Failed to start quiz attempt: " + error.message));
     }
   });
 };
 
-// update initial quiz attempt if user starts quiz and have existing attempt
+// update initial quiz attempt if user starts quiz again
 export const updateExistingInitialQuizAttempt = async (
   attemptId: number,
   quizId: number,
@@ -122,7 +114,7 @@ export const updateExistingInitialQuizAttempt = async (
 ): Promise<Error | { message: string }> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.user_quiz_attempts.update({
+      await prisma.user_quiz_attempts.update({
         where: {
           id: attemptId,
           AND: {
@@ -135,13 +127,9 @@ export const updateExistingInitialQuizAttempt = async (
         },
       });
 
-      if (result) {
-        resolve({ message: "Quiz forfeited successfully" });
-      } else {
-        reject(new Error("Failed to update quiz attempt"));
-      }
-    } catch (error) {
-      reject(error);
+      resolve({ message: "Quiz forfeited successfully" });
+    } catch (error: any) {
+      reject(new Error("Failed to update quiz attempt: " + error.message));
     }
   });
 };
@@ -151,7 +139,7 @@ export const submitQuizAttempt = async (
   quizId: number,
   userId: number,
   quizUserObjectiveAnswers: { question_id: number; user_answer: string }[]
-): Promise<Error | { message: string }> => {
+): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
     try {
       const resultTransaction = await prisma.$transaction(
@@ -434,8 +422,8 @@ export const submitQuizAttempt = async (
       if (resultTransaction) {
         resolve(resultTransaction);
       }
-    } catch (error) {
-      reject(error);
+    } catch (error: any) {
+      reject(new Error("Failed to submit quiz attempt: " + error.message));
     }
   });
 };

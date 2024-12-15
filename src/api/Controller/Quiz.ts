@@ -52,21 +52,14 @@ export const StartQuiz = async (req: Request, res: Response) => {
       parseInt(userId as string)
     );
 
-    if (!(userAttempt instanceof Error)) {
-      const result = await updateExistingInitialQuizAttempt(
-        Number(userAttempt.id),
-        Number(userAttempt.quiz_id),
-        Number(userAttempt.user_id),
-        new Date()
-      );
+    const result = await updateExistingInitialQuizAttempt(
+      Number(userAttempt.id),
+      Number(userAttempt.quiz_id),
+      Number(userAttempt.user_id),
+      new Date()
+    );
 
-      if (result instanceof Error) {
-        throw result;
-      }
-
-      res.status(200).json(result);
-      return;
-    }
+    res.status(200).json(result);
   } catch (error: any) {
     if (error.message === "Quiz attempt not found") {
       try {
@@ -119,10 +112,6 @@ export const SubmitQuiz = async (req: Request, res: Response) => {
       parseInt(userId as string),
       quizUserObjectiveAnswers
     );
-
-    if (result instanceof Error) {
-      throw result;
-    }
 
     res.status(200).json(result);
   } catch (error: any) {
