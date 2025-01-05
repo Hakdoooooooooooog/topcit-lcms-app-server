@@ -189,7 +189,10 @@ export const StartQuiz = async (req: Request, res: Response) => {
   }
 
   try {
-    const userAttempt = await getQuizUserAttempt(parseInt(quizId as string));
+    const userAttempt = await getQuizUserAttempt(
+      parseInt(userId as string),
+      parseInt(quizId as string)
+    );
 
     const result = await updateExistingInitialQuizAttempt(
       Number(userAttempt.id),

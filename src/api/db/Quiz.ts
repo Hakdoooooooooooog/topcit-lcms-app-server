@@ -8,7 +8,7 @@ import {
 import { QuizDetails } from "../types/quiz";
 
 interface QuizWithObjectiveQuestions extends quiz {
-  user_quiz_attempts: user_quiz_attempts | null;
+  user_quiz_attempts: user_quiz_attempts[] | null;
   objective_questions: Omit<objective_questions, "correct_answer">[];
 }
 
@@ -283,13 +283,17 @@ export const editQuiz = async (
 };
 
 export const getQuizUserAttempt = async (
+  userId: number,
   quizId: number
 ): Promise<user_quiz_attempts> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.user_quiz_attempts.findUnique({
+      const result = await prisma.user_quiz_attempts.findFirst({
         where: {
           quiz_id: quizId,
+          AND: {
+            user_id: userId,
+          },
         },
       });
 
@@ -557,10 +561,21 @@ export const submitQuizAttempt = async (
             throw new Error("Failed to submit quiz attempt");
           }
 
+          const userExistingCompletedQuizzes =
+            await tx.user_completed_quizzes.findFirst({
+              where: {
+                user_id: userQuizAttempt.user_id,
+                quiz_id: userQuizAttempt.quiz_id,
+              },
+              select: {
+                id: true,
+              },
+            });
+
           // Update user completed quizzes and user progress
           const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
             where: {
-              quiz_id: userQuizAttempt.quiz_id,
+              id: userExistingCompletedQuizzes?.id ?? 0,
             },
             update: {
               completed_at: new Date(),
