@@ -557,10 +557,21 @@ export const submitQuizAttempt = async (
             throw new Error("Failed to submit quiz attempt");
           }
 
+          const userExistingCompletedQuizzes =
+            await tx.user_completed_quizzes.findFirst({
+              where: {
+                user_id: userQuizAttempt.user_id,
+                quiz_id: userQuizAttempt.quiz_id,
+              },
+              select: {
+                id: true,
+              },
+            });
+
           // Update user completed quizzes and user progress
           const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
             where: {
-              quiz_id: userQuizAttempt.quiz_id,
+              id: userExistingCompletedQuizzes?.id ?? 0,
             },
             update: {
               completed_at: new Date(),
