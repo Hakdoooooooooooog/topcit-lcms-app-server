@@ -35,3 +35,13 @@ export const RegisterSchema = UserSchema.refine(
 export const EditProfileSchema = UserSchema.pick({
   username: true,
 });
+
+export const OTPVerificationSchema = z.object({
+  email: z.string().email("Invalid email"),
+  otp: z.string().length(6, "OTP must be 6 characters long").optional(),
+});
+
+export const NewPasswordSchema = z.object({
+  password: UserSchema.shape.password,
+  confirmPassword: UserSchema.shape.confirmPassword,
+});

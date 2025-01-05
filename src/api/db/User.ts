@@ -136,6 +136,31 @@ export function createUserRefreshToken(
   });
 }
 
+export function getUserStoredOTP(
+  email: string
+): Promise<{ otp: string; expires_at: Date }> {
+  return new Promise(async (resolve, reject) => {
+    const OTPData = await prisma.user_otp.findFirst({
+      select: {
+        otp: true,
+        expires_at: true,
+      },
+      where: {
+        email: email,
+      },
+    });
+
+    if (OTPData && OTPData.otp) {
+      resolve({
+        otp: OTPData.otp,
+        expires_at: OTPData.expires_at,
+      });
+    } else {
+      reject({ message: "OTP not found" });
+    }
+  });
+}
+
 export function createUser(
   user: Omit<users, "id" | "role" | "created_at">
 ): Promise<{ message: string; errors?: any }> {
@@ -145,27 +170,101 @@ export function createUser(
     const hashedPassword = await hashPassword(password);
 
     await prisma
-      .$transaction([
-        prisma.users.create({
+      .$transaction(async (tx) => {
+        const firstQuiz = await tx.quiz.findFirst({
+          orderBy: {
+            id: "asc",
+          },
+        });
+
+        if (!firstQuiz) {
+          throw new Error("No quiz found in the database");
+        }
+
+        return tx.users.create({
           data: {
             username: username,
             userid: userid,
             email: email,
             password: hashedPassword,
+            user_progress: {
+              create: {
+                curr_chap_id:
+                  (
+                    await tx.chapters.findFirst({
+                      select: {
+                        id: true,
+                      },
+                      orderBy: {
+                        id: "asc",
+                      },
+                    })
+                  )?.id ?? BigInt(1),
+                curr_topic_id:
+                  (
+                    await tx.topics.findFirst({
+                      select: {
+                        id: true,
+                      },
+                      orderBy: {
+                        id: "asc",
+                      },
+                    })
+                  )?.id ?? BigInt(1),
+                curr_quiz_id: firstQuiz.id,
+                completed_lessons: 0,
+                completed_quizzes: 0,
+              },
+            },
           },
-        }),
-        prisma.user_progress.create({
-          data: {
-            user_id: userid,
-          },
-        }),
-      ])
+        });
+      })
       .then((_data) => {
         return resolve({ message: "User created successfully" });
       })
       .catch((err) => {
         return reject({ message: "Error creating user", errors: err });
       });
+  });
+}
+
+export function createOTP(
+  email: string,
+  user_id: number,
+  otp: string
+): Promise<{ message: string }> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const OTPTransaction = await prisma.$transaction(async (tx) => {
+        const OTPupdate = await tx.user_otp.upsert({
+          where: {
+            email: email,
+            AND: {
+              user_id: user_id,
+            },
+          },
+          update: {
+            otp: otp,
+            expires_at: new Date(Date.now() + 300000),
+          },
+          create: {
+            email: email,
+            user_id: user_id,
+            otp: otp,
+            created_at: new Date(),
+            expires_at: new Date(Date.now() + 300000),
+          },
+        });
+
+        return OTPupdate;
+      });
+
+      if (OTPTransaction) {
+        resolve({ message: "OTP created successfully" });
+      }
+    } catch (error: any) {
+      reject({ message: "Error creating OTP:" + error.message });
+    }
   });
 }
 
@@ -309,38 +408,25 @@ export function getUserByEmail(email: string): Promise<users[]> {
 }
 
 export function getUserByEmailorID(
-  email: string,
-  userid: number
+  email?: string,
+  userid?: number
 ): Promise<{
   email?: string;
   userid?: bigint;
 }> {
   return new Promise(async (resolve, reject) => {
-    const userData = await prisma.users.findFirst({
+    const userData = await prisma.users.findUnique({
+      where: {
+        email: email,
+      },
       select: {
         email: true,
         userid: true,
       },
-      where: {
-        OR: [
-          {
-            email: email,
-          },
-          {
-            userid: userid,
-          },
-        ],
-      },
     });
 
     if (userData) {
-      if (userData.email === email && Number(userData.userid) === userid) {
-        resolve({ email: userData.email, userid: userData.userid });
-      } else if (userData.email === email) {
-        resolve({ email: userData.email });
-      } else if (Number(userData.userid) === userid) {
-        resolve({ userid: userData.userid });
-      }
+      resolve(userData);
     } else {
       resolve({});
     }
@@ -353,6 +439,8 @@ export function updateUserById(userId: number, user: any): Promise<any> {
   const { username, email } = user;
 
   return new Promise(async (resolve, reject) => {
+    const hashedPassword = await hashPassword(user.password);
+
     const updateUser = await prisma.users.update({
       where: {
         userid: userId,
@@ -360,6 +448,7 @@ export function updateUserById(userId: number, user: any): Promise<any> {
       data: {
         username: username,
         email: email,
+        password: hashedPassword,
       },
     });
 
