@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import { Request, Response } from "express";
 import {
+  createOTP,
   createUser,
   createUserRefreshToken,
   getUserByEmailorID,
@@ -8,6 +9,7 @@ import {
   getUserCredentials,
   getUserProgressByUserId,
   getUserRefreshToken,
+  getUserStoredOTP,
   updateUserById,
   updateUserProgressByUserId,
   updateUserRefreshTokenByUserID,
@@ -18,6 +20,8 @@ import {
   setUserCookie,
   checkUserRefreshTokenValidity,
   serializeBigInt,
+  generateOTP,
+  sendOTPEmail,
 } from "../services";
 
 export const userLogin = async (req: Request, res: Response) => {
@@ -348,4 +352,156 @@ export const updateUserChapterProgress = async (
 export const userLogout = async (req: Request, res: Response) => {
   res.clearCookie("accessToken");
   res.status(StatusCodes.OK).json({ message: "Logged out" });
+};
+
+export const retryOTP = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  try {
+    // In a real application, you would:
+    // 1. Retrieve the stored OTP from database
+    // 2. Compare with the provided OTP
+    // 3. Check if OTP is expired
+    // 4. Mark email as verified if OTP matches
+
+    // For demonstration, we'll just generate and send a new OTP
+    const newOTP = generateOTP();
+
+    const user = await getUserByEmailorID(email);
+
+    if (!user || !user.email) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    await createOTP(user.email, Number(user.userid), newOTP);
+    await sendOTPEmail(email, newOTP);
+
+    res.status(200).json({
+      success: true,
+      message: "New OTP sent successfully",
+    });
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process OTP verification",
+    });
+  }
+};
+
+export const verifyOTP = async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  try {
+    // In a real application, you would:
+    // 1. Retrieve the stored OTP from database
+    // 2. Compare with the provided OTP
+    // 3. Check if OTP is expired
+    // 4. Mark email as verified if OTP matches
+
+    // For demonstration, we'll just generate and send a new OTP
+    const storedOTP = await getUserStoredOTP(email);
+
+    if (!storedOTP) {
+      res.status(404).json({
+        success: false,
+        message: "OTP not found",
+      });
+      return;
+    }
+
+    if (storedOTP.otp !== otp) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (error) {
+    console.error("OTP verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process OTP verification",
+    });
+  }
+};
+
+export const userForgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  try {
+    const userData = await getUserByEmailorID(email);
+
+    if (!userData) {
+      res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
+      return;
+    }
+    const newOTP = generateOTP();
+    await createOTP(email, Number(userData.userid), newOTP);
+    await sendOTPEmail(email, newOTP);
+
+    res.status(StatusCodes.OK).json({
+      message: "OTP sent successfully",
+    });
+  } catch (error: any) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: error.message });
+  } finally {
+    res.end();
+  }
+};
+
+export const userUpdatePassword = async (req: Request, res: Response) => {
+  const { email, password, confirmPassword } = req.body;
+
+  if (password !== confirmPassword) {
+    res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Passwords do not match" });
+    return;
+  }
+
+  if (!email || !password || !confirmPassword) {
+    res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "Missing required fields" });
+    return;
+  }
+
+  try {
+    const userData = await getUserByEmailorID(email);
+
+    if (!userData) {
+      res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
+      return;
+    }
+
+    const updatedData = await updateUserById(Number(userData.userid), {
+      password,
+    });
+
+    if (!updatedData) {
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        message: "Error updating password",
+      });
+      return;
+    }
+
+    res.status(StatusCodes.OK).json({ message: "Password updated" });
+  } catch (error: any) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: error.message });
+  } finally {
+    res.end();
+  }
 };

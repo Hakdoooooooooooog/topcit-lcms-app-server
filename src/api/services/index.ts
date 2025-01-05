@@ -2,6 +2,7 @@ import { users } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import path from "path";
+import transporter from "./nodemailer";
 
 export const hashPassword = async (password: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -146,4 +147,106 @@ export const formatPDFFilename = ({
     path.extname(chapterFile.originalname);
 
   return filename;
+};
+
+export const generateOTP = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+export const sendOTPEmail = async (email: string, otp: string) => {
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: email,
+    subject: "TOPCIT LCMS - Email Verification OTP",
+    html: `
+      <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OTP Verification</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding: 20px 0;
+        border-bottom: 2px solid #15803d;
+      }
+      .content {
+        padding: 20px;
+        text-align: center;
+      }
+      .otp-code {
+        font-size: 32px;
+        font-weight: bold;
+        color: #15803d;
+        letter-spacing: 4px;
+        margin: 20px 0;
+        padding: 10px;
+        background-color: #f0fdf4;
+        border-radius: 4px;
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        color: #666666;
+        font-size: 12px;
+      }
+      .warning {
+        color: #dc2626;
+        font-size: 14px;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img src="[LOGO_URL]" alt="TOPCIT LCMS Logo" height="50" />
+        <h1>Email Verification</h1>
+      </div>
+      <div class="content">
+        <p>Hello,</p>
+        <p>Your OTP (One-Time Password) for email verification is:</p>
+        <div class="otp-code">${otp}</div>
+        <p>This code will expire in 5 minutes.</p>
+        <p class="warning">
+          Do not share this code with anyone. Our team will never ask for your
+          OTP.
+        </p>
+      </div>
+      <div class="footer">
+        <p>This is an automated message, please do not reply.</p>
+        <p>© 2024 TOPCIT LCMS. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
+    `,
+  };
+
+  return new Promise((resolve, reject) => {
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        reject(
+          'Error sending OTP email.' + err.message
+        );
+      }
+      resolve(info);
+    });
+  });
 };
