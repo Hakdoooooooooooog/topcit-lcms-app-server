@@ -276,77 +276,87 @@ export const updateChapter = async (req: Request, res: Response) => {
     return;
   }
 
-  if (!file) {
-    res.status(400).json({ message: "No file uploaded" });
-    return;
-  }
-
   try {
-    const filename = formatPDFFilename({
-      chapterFile: file,
-      topicId: Number(topicId),
-      chapterNum: Number(chapterId),
-      path: path,
-    });
+    if (file) {
+      const filename = formatPDFFilename({
+        chapterFile: file,
+        topicId: Number(topicId),
+        chapterNum: Number(chapterId),
+        path: path,
+      });
 
-    const result = await Promise.all([
-      getChapterPDFByChapterId(Number(chapterId)),
-      updateChapterContentByChapterId(
-        Number(chapterId),
-        chapterTitle,
-        chapterDescription
-      ),
-      updateChapterPDFByChapterId(Number(chapterId), {
-        filename: filename,
-        mimetype: file.mimetype,
-      }),
-      compress(file.buffer),
-    ]).then((res) => {
-      return {
-        chapterPreviousPDF: serializeBigInt(res[0]) as files,
-        content: serializeBigInt(res[1]) as chapters,
-        file: serializeBigInt(res[2]) as files,
-        compressedFileBuffer: res[3],
-      };
-    });
-
-    if (!result.content) {
-      res.sendStatus(404);
-      return;
-    }
-
-    if (result.chapterPreviousPDF) {
-      const params: DeleteObjectCommandInput = {
-        Bucket: BUCKET_NAME,
-        Key: result.chapterPreviousPDF.file_name,
-      };
-      const command = new DeleteObjectCommand(params);
-
-      const params2: PutObjectCommandInput = {
-        Bucket: BUCKET_NAME,
-        Key: filename,
-        Body: result.compressedFileBuffer,
-        ContentType: file.mimetype,
-      };
-      const command2 = new PutObjectCommand(params2);
-
-      const resultCommand = await Promise.all([
-        s3.send(command2),
-        s3.send(command),
+      const result = await Promise.all([
+        getChapterPDFByChapterId(Number(chapterId)),
+        updateChapterContentByChapterId(
+          Number(chapterId),
+          chapterTitle,
+          chapterDescription
+        ),
+        updateChapterPDFByChapterId(Number(chapterId), {
+          filename: filename,
+          mimetype: file.mimetype,
+        }),
+        compress(file.buffer),
       ]).then((res) => {
         return {
-          upload: res[0],
-          delete: res[1],
+          chapterPreviousPDF: serializeBigInt(res[0]) as files,
+          content: serializeBigInt(res[1]) as chapters,
+          file: serializeBigInt(res[2]) as files,
+          compressedFileBuffer: res[3],
         };
       });
 
-      if (!resultCommand.delete || !resultCommand.upload) {
+      if (!result.content) {
         res.sendStatus(404);
         return;
       }
-    }
 
-    res.status(200).json({ message: "Chapter updated" });
+      if (result.chapterPreviousPDF) {
+        const params: DeleteObjectCommandInput = {
+          Bucket: BUCKET_NAME,
+          Key: result.chapterPreviousPDF.file_name,
+        };
+        const command = new DeleteObjectCommand(params);
+
+        const params2: PutObjectCommandInput = {
+          Bucket: BUCKET_NAME,
+          Key: filename,
+          Body: result.compressedFileBuffer,
+          ContentType: file.mimetype,
+        };
+        const command2 = new PutObjectCommand(params2);
+
+        const resultCommand = await Promise.all([
+          s3.send(command2),
+          s3.send(command),
+        ]).then((res) => {
+          return {
+            upload: res[0],
+            delete: res[1],
+          };
+        });
+
+        if (!resultCommand.delete || !resultCommand.upload) {
+          res.sendStatus(404);
+          return;
+        }
+      }
+
+      res.status(200).json({ message: "Chapter updated" });
+    } else {
+      const result = await updateChapterContentByChapterId(
+        Number(chapterId),
+        chapterTitle,
+        chapterDescription
+      );
+
+      if (!result) {
+        res.sendStatus(404);
+        return;
+      }
+
+      res.status(200).json({ message: "Chapter updated" });
+    }
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
