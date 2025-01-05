@@ -3,71 +3,293 @@ import {
   objective_questions,
   quiz,
   user_quiz_attempts,
+  topics,
 } from "../services/prisma";
+import { QuizDetails } from "../types/quiz";
 
-export interface QuizWithObjectiveQuestions extends quiz {
+interface QuizWithObjectiveQuestions extends quiz {
+  user_quiz_attempts: user_quiz_attempts | null;
   objective_questions: Omit<objective_questions, "correct_answer">[];
 }
 
-export const getChapterWithQuizAndObjectiveQuestion = async (
+interface TopicWithQuizAndObjectiveQuestion extends topics {
+  quiz: QuizWithObjectiveQuestions[];
+}
+
+interface QuizzesAssessment extends topics {
+  quiz: Omit<QuizWithObjectiveQuestions, "user_quiz_attempts">[];
+}
+
+export const getTopicWithQuizAndObjectiveQuestion = async (
   userId: number
-): Promise<QuizWithObjectiveQuestions[]> => {
+): Promise<TopicWithQuizAndObjectiveQuestion[]> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.quiz.findMany({
+      const chapterResult = await prisma.topics.findMany({
+        orderBy: {
+          id: "asc",
+        },
         include: {
-          objective_questions: {
+          quiz: {
             orderBy: {
               id: "asc",
             },
             select: {
               id: true,
-              quiz_id: true,
-              question: true,
-              question_type: true,
-              multiple_choice_options: {
-                orderBy: {
-                  id: "asc",
+              topic_id: true,
+              title: true,
+              quiz_type: true,
+              max_attempts: true,
+              created_at: true,
+              user_quiz_attempts: {
+                where: {
+                  user_id: userId,
+                },
+                select: {
+                  id: true,
+                  quiz_id: true,
+                  user_id: true,
+                  start_time: true,
+                  completed_at: true,
+                  score: true,
+                  timeTaken: true,
+                  attempt_count: true,
                 },
               },
-            },
-          },
-
-          user_quiz_attempts: {
-            where: {
-              user_id: userId,
-            },
-            select: {
-              quiz_id: true,
-              start_time: true,
-              score: true,
-              completed_at: true,
-              timeTaken: true,
-              attempt_count: true,
+              objective_questions: {
+                select: {
+                  id: true,
+                  quiz_id: true,
+                  question: true,
+                  question_type: true,
+                  multiple_choice_options: {
+                    orderBy: {
+                      id: "asc",
+                    },
+                    select: {
+                      option_text: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
       });
 
-      resolve(result);
+      resolve(chapterResult);
     } catch (error: any) {
       reject(new Error("Failed to get chapter: " + error.message));
     }
   });
 };
 
+export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const chapterResult = await prisma.$transaction(async (tx) => {
+        const result = await tx.topics.findMany({
+          orderBy: {
+            id: "asc",
+          },
+          include: {
+            quiz: {
+              orderBy: {
+                id: "asc",
+              },
+              select: {
+                id: true,
+                topic_id: true,
+                title: true,
+                quiz_type: true,
+                max_attempts: true,
+                created_at: true,
+                objective_questions: {
+                  select: {
+                    id: true,
+                    quiz_id: true,
+                    question: true,
+                    question_type: true,
+                    correct_answer: true,
+                    multiple_choice_options: {
+                      orderBy: {
+                        id: "asc",
+                      },
+                      select: {
+                        option_text: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return result;
+      });
+
+      resolve(chapterResult);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
+    }
+  });
+};
+
+export const getQuizByTopicId = async (topicId: number): Promise<quiz[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const result = await prisma.quiz.findMany({
+        where: {
+          topic_id: topicId,
+        },
+      });
+
+      resolve(result);
+    } catch (error: any) {
+      reject(new Error("Failed to get quiz by topic ID: " + error.message));
+    }
+  });
+};
+
+export const createQuiz = async (
+  quizDetails: QuizDetails
+): Promise<{ message: string }> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const createQuiz = await prisma.$transaction(async (tx) => {
+        const createdQuiz = await tx.quiz.create({
+          data: {
+            topic_id: quizDetails.topics.topicId,
+            title: quizDetails.title,
+            quiz_type: quizDetails.quizType ?? "objective",
+            max_attempts: quizDetails.maxAttempts,
+            created_at: new Date(),
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        await tx.objective_questions.createMany({
+          data: quizDetails.objectiveQuestions.map((question) => {
+            return {
+              quiz_id: createdQuiz.id,
+              question: question.question,
+              question_type: question.questionType,
+              correct_answer: question.correctAnswer,
+            };
+          }),
+        });
+
+        const objectiveQuestions = await tx.objective_questions.findMany({
+          where: {
+            quiz_id: createdQuiz.id,
+          },
+          select: {
+            id: true,
+            question: true,
+          },
+        });
+
+        await tx.multiple_choice_options.createMany({
+          data: quizDetails.objectiveQuestions.flatMap((question) => {
+            const objectiveQuestion = objectiveQuestions.find(
+              (oq) => oq.question === question.question
+            );
+
+            if (!objectiveQuestion) {
+              throw new Error(
+                `Objective question not found for question: ${question.question}`
+              );
+            }
+
+            return question.multipleChoiceOptions.map((option) => {
+              return {
+                objective_question_id: objectiveQuestion.id,
+                option_text: option.optionText,
+              };
+            });
+          }),
+        });
+
+        return { message: "Quiz created/updated successfully." };
+      });
+
+      resolve(createQuiz);
+    } catch (error: any) {
+      reject(new Error("Failed to create quiz"));
+      console.error(error);
+    }
+  });
+};
+
+export const editQuiz = async (
+  quizDetails: QuizDetails
+): Promise<{ message: string }> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const editQuiz = await prisma.$transaction(async (tx) => {
+        await tx.quiz.update({
+          where: {
+            id: quizDetails.quizId,
+          },
+          data: {
+            title: quizDetails.title,
+            quiz_type: quizDetails.quizType ?? "objective",
+            max_attempts: quizDetails.maxAttempts,
+            objective_questions: {
+              updateMany: quizDetails.objectiveQuestions.map((question) => {
+                return {
+                  where: {
+                    quiz_id: quizDetails.quizId,
+                    question: question.question,
+                  },
+                  data: {
+                    question_type: question.questionType,
+                    correct_answer: question.correctAnswer,
+                  },
+                };
+              }),
+            },
+          },
+        });
+
+        await tx.multiple_choice_options.updateMany({
+          where: {
+            objective_question_id: {
+              in: quizDetails.objectiveQuestions.map((_question) =>
+                BigInt(quizDetails.quizId ?? 0)
+              ),
+            },
+          },
+          data: {
+            option_text: quizDetails.objectiveQuestions
+              .flatMap((question) => question.multipleChoiceOptions)
+              .map((option) => option.optionText)
+              .join(", "),
+          },
+        });
+
+        return { message: "Quiz updated successfully." };
+      });
+
+      resolve(editQuiz);
+    } catch (error: any) {
+      reject(new Error("Failed to update quiz"));
+      console.error(error);
+    }
+  });
+};
+
 export const getQuizUserAttempt = async (
-  quizId: number,
-  userId: number
+  quizId: number
 ): Promise<user_quiz_attempts> => {
   return new Promise(async (resolve, reject) => {
     try {
       const result = await prisma.user_quiz_attempts.findUnique({
         where: {
-          user_id: userId,
-          AND: {
-            quiz_id: quizId,
-          },
+          quiz_id: quizId,
         },
       });
 
@@ -127,7 +349,7 @@ export const updateExistingInitialQuizAttempt = async (
         },
       });
 
-      resolve({ message: "Quiz forfeited successfully" });
+      resolve({ message: "Quiz attempt updated successfully" });
     } catch (error: any) {
       reject(new Error("Failed to update quiz attempt: " + error.message));
     }
@@ -335,57 +557,28 @@ export const submitQuizAttempt = async (
             throw new Error("Failed to submit quiz attempt");
           }
 
-          const upsertUserCompletedQuiz =
-            await tx.user_completed_quizzes.upsert({
-              where: {
-                user_id: userQuizAttempt.user_id,
-                quiz_id: quizId,
-              },
-              create: {
-                user_id: userQuizAttempt.user_id,
-                quiz_id: quizId,
-                completed_at:
-                  (
-                    await tx.user_quiz_attempts.findUnique({
-                      where: {
-                        id: userQuizAttempt.user_id,
-                      },
-                      select: {
-                        completed_at: true,
-                      },
-                    })
-                  )?.completed_at ?? new Date(),
-              },
-              update: {
-                completed_at:
-                  (
-                    await tx.user_quiz_attempts.findUnique({
-                      where: {
-                        id: userQuizAttempt.user_id,
-                      },
-                      select: {
-                        completed_at: true,
-                      },
-                    })
-                  )?.completed_at ?? new Date(),
-              },
-            });
-
-          if (!upsertUserCompletedQuiz) {
-            throw new Error("Failed to update user completed quizzes");
-          }
-
+          // Update user completed quizzes and user progress
           const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
             where: {
-              user_id: userId,
-              quiz_id: quizId,
+              quiz_id: userQuizAttempt.quiz_id,
             },
             update: {
               completed_at: new Date(),
             },
             create: {
-              user_id: userId,
-              quiz_id: quizId,
+              topic_id:
+                (
+                  await tx.quiz.findUnique({
+                    where: {
+                      id: userQuizAttempt.quiz_id,
+                    },
+                    select: {
+                      topic_id: true,
+                    },
+                  })
+                )?.topic_id ?? 0, // Provide a default value or handle appropriately
+              user_id: userQuizAttempt.user_id,
+              quiz_id: userQuizAttempt.quiz_id,
               completed_at: new Date(),
             },
           });

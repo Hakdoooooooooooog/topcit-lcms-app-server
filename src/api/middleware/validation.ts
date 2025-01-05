@@ -7,10 +7,8 @@ import {
   setUserCookie,
   decodeAccessToken,
   extractUserId,
-  extractUserRole,
   checkUserRefreshTokenValidity,
 } from "../services";
-import { verifyAndGenerateUserExpiredToken } from ".";
 import { getUserById, getUserRefreshToken } from "../db/User";
 
 type ValidationDataProps = {
