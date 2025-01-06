@@ -236,27 +236,24 @@ export function createOTP(
   return new Promise(async (resolve, reject) => {
     try {
       const OTPTransaction = await prisma.$transaction(async (tx) => {
-        const OTPupdate = await tx.user_otp.upsert({
+        const OTPcreate = await tx.user_otp.upsert({
           where: {
             email: email,
-            AND: {
-              user_id: user_id,
-            },
           },
           update: {
             otp: otp,
+            user_id: user_id,
             expires_at: new Date(Date.now() + 300000),
           },
           create: {
             email: email,
-            user_id: user_id,
             otp: otp,
-            created_at: new Date(),
+            user_id: user_id,
             expires_at: new Date(Date.now() + 300000),
           },
         });
 
-        return OTPupdate;
+        return OTPcreate;
       });
 
       if (OTPTransaction) {
@@ -267,6 +264,24 @@ export function createOTP(
     }
   });
 }
+
+export const deleteOTP = async (
+  email: string
+): Promise<{ message: string }> => {
+  return new Promise(async (resolve, reject) => {
+    const deleteOTP = await prisma.user_otp.delete({
+      where: {
+        email: email,
+      },
+    });
+
+    if (deleteOTP) {
+      resolve({ message: "OTP deleted successfully" });
+    } else {
+      reject({ message: "Error deleting OTP" });
+    }
+  });
+};
 
 export function updateUserProgressByUserId(
   user_id: number,
@@ -415,9 +430,9 @@ export function getUserByEmailorID(
   userid?: bigint;
 }> {
   return new Promise(async (resolve, reject) => {
-    const userData = await prisma.users.findUnique({
+    const userData = await prisma.users.findFirst({
       where: {
-        email: email,
+        OR: [{ email: email }, { userid: BigInt(userid ?? 0) }],
       },
       select: {
         email: true,
@@ -426,36 +441,87 @@ export function getUserByEmailorID(
     });
 
     if (userData) {
+      if (userData.email === email && Number(userData.userid) === userid) {
+        resolve({ email: userData.email, userid: userData.userid });
+      } else if (userData.email === email) {
+        resolve({ email: userData.email });
+      } else if (Number(userData.userid) === userid) {
+        resolve({ userid: userData.userid });
+      }
       resolve(userData);
     } else {
       resolve({});
     }
-
-    reject({ message: "User not found" });
   });
 }
 
-export function updateUserById(userId: number, user: any): Promise<any> {
-  const { username, email } = user;
-
+export function getUserDetailsByEmail(
+  email: string
+): Promise<Pick<users, "userid" | "email">> {
   return new Promise(async (resolve, reject) => {
-    const hashedPassword = await hashPassword(user.password);
-
-    const updateUser = await prisma.users.update({
+    const userData = await prisma.users.findFirst({
       where: {
-        userid: userId,
-      },
-      data: {
-        username: username,
         email: email,
-        password: hashedPassword,
+      },
+      select: {
+        userid: true,
+        email: true,
       },
     });
 
-    if (updateUser) {
-      resolve({ message: "User updated successfully" });
+    if (userData) {
+      resolve(userData);
     } else {
-      reject({ message: "Error updating user" });
+      reject(new Error("User not found"));
+    }
+  });
+}
+
+export function updateUserById(
+  userId: number,
+  user: {
+    username?: string;
+    email?: string;
+    password?: string;
+  }
+): Promise<any> {
+  const { username, email, password } = user;
+
+  return new Promise(async (resolve, reject) => {
+    if (password) {
+      const hashedPassword = await hashPassword(password);
+      const updateUser = await prisma.users.update({
+        where: {
+          userid: userId,
+        },
+        data: {
+          username: username,
+          email: email,
+          password: hashedPassword,
+        },
+      });
+
+      if (updateUser) {
+        resolve({ message: "User updated successfully" });
+      } else {
+        reject({ message: "Error updating user" });
+      }
+    } else {
+      const updateUser = await prisma.users.update({
+        where: {
+          userid: userId,
+        },
+        data: {
+          username: username,
+          email: email,
+        },
+      });
+
+      if (updateUser) {
+        resolve({ message: "User updated successfully" });
+      } else {
+        reject({ message: "Error updating user" });
+      }
     }
   });
 }

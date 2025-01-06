@@ -242,9 +242,7 @@ export const sendOTPEmail = async (email: string, otp: string) => {
   return new Promise((resolve, reject) => {
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
-        reject(
-          'Error sending OTP email.' + err.message
-        );
+        reject(new Error("Error sending OTP email: " + err.message));
       }
       resolve(info);
     });

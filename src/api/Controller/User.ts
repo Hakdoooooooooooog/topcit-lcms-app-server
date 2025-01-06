@@ -4,9 +4,11 @@ import {
   createOTP,
   createUser,
   createUserRefreshToken,
+  deleteOTP,
   getUserByEmailorID,
   getUserById,
   getUserCredentials,
+  getUserDetailsByEmail,
   getUserProgressByUserId,
   getUserRefreshToken,
   getUserStoredOTP,
@@ -141,7 +143,7 @@ export const userLogin = async (req: Request, res: Response) => {
 };
 
 export const userRegister = async (req: Request, res: Response) => {
-  const { username, userid, email, password } = req.body;
+  const { username, userid, email, password, otp } = req.body;
   const errors = [];
 
   try {
@@ -163,6 +165,21 @@ export const userRegister = async (req: Request, res: Response) => {
         .json({ message: "User already exists", errors });
       return;
     }
+
+    const userOTP = await getUserStoredOTP(email);
+
+    if (!userOTP) {
+      res.status(StatusCodes.BAD_REQUEST).json({ message: "OTP not found" });
+      return;
+    }
+
+    if (userOTP.otp !== otp) {
+      res.status(StatusCodes.BAD_REQUEST).json({ message: "Invalid OTP" });
+      return;
+    }
+
+    // Delete the OTP after successful verification
+    await deleteOTP(email);
 
     const data = await createUser({
       username,
@@ -357,13 +374,6 @@ export const userLogout = async (req: Request, res: Response) => {
 export const retryOTP = async (req: Request, res: Response) => {
   const { email } = req.body;
   try {
-    // In a real application, you would:
-    // 1. Retrieve the stored OTP from database
-    // 2. Compare with the provided OTP
-    // 3. Check if OTP is expired
-    // 4. Mark email as verified if OTP matches
-
-    // For demonstration, we'll just generate and send a new OTP
     const newOTP = generateOTP();
 
     const user = await getUserByEmailorID(email);
@@ -376,18 +386,37 @@ export const retryOTP = async (req: Request, res: Response) => {
       return;
     }
 
-    await createOTP(user.email, Number(user.userid), newOTP);
     await sendOTPEmail(email, newOTP);
+    await createOTP(user.email, Number(user.userid), newOTP);
 
     res.status(200).json({
       success: true,
       message: "New OTP sent successfully",
     });
-  } catch (error) {
-    console.error("OTP verification error:", error);
+  } catch (error: any) {
     res.status(500).json({
       success: false,
-      message: "Failed to process OTP verification",
+      message: "Failed to process OTP verification:" + error.message,
+    });
+  }
+};
+
+export const sendOTPRegistration = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  try {
+    const newOTP = generateOTP();
+    await sendOTPEmail(email, newOTP);
+    await createOTP(email, 0, newOTP);
+
+    res.status(200).json({
+      success: true,
+      message: "OTP sent successfully to " + email,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to process OTP verification:" + error.message,
     });
   }
 };
@@ -396,13 +425,6 @@ export const verifyOTP = async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
   try {
-    // In a real application, you would:
-    // 1. Retrieve the stored OTP from database
-    // 2. Compare with the provided OTP
-    // 3. Check if OTP is expired
-    // 4. Mark email as verified if OTP matches
-
-    // For demonstration, we'll just generate and send a new OTP
     const storedOTP = await getUserStoredOTP(email);
 
     if (!storedOTP) {
@@ -421,6 +443,8 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return;
     }
 
+    // Delete the OTP after successful verification
+    await deleteOTP(email);
     res.status(200).json({
       success: true,
       message: "OTP verified successfully",
@@ -438,12 +462,13 @@ export const userForgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
 
   try {
-    const userData = await getUserByEmailorID(email);
+    const userData = await getUserDetailsByEmail(email);
 
-    if (!userData) {
+    if (!userData.userid) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
       return;
     }
+
     const newOTP = generateOTP();
     await createOTP(email, Number(userData.userid), newOTP);
     await sendOTPEmail(email, newOTP);
@@ -478,7 +503,7 @@ export const userUpdatePassword = async (req: Request, res: Response) => {
   }
 
   try {
-    const userData = await getUserByEmailorID(email);
+    const userData = await getUserDetailsByEmail(email);
 
     if (!userData) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
@@ -487,6 +512,7 @@ export const userUpdatePassword = async (req: Request, res: Response) => {
 
     const updatedData = await updateUserById(Number(userData.userid), {
       password,
+      email: userData.email,
     });
 
     if (!updatedData) {
