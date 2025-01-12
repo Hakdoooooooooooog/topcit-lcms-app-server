@@ -230,26 +230,24 @@ export function createUser(
 
 export function createOTP(
   email: string,
-  student_id: number,
-  otp: string
+  otp: string,
+  studentId?: number
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
     try {
       const OTPTransaction = await prisma.$transaction(async (tx) => {
         const OTPcreate = await tx.user_otp.upsert({
           where: {
-            student_id: student_id,
+            email: email,
           },
           update: {
             otp: otp,
-            student_id: student_id,
-            email: email,
             expires_at: new Date(Date.now() + 300000),
           },
           create: {
             email: email,
             otp: otp,
-            student_id: student_id,
+            student_id: (await tx.user_otp.count()) + 1,
             expires_at: new Date(Date.now() + 300000),
           },
         });

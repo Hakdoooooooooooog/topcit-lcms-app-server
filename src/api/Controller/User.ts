@@ -385,7 +385,7 @@ export const retryOTP = async (req: Request, res: Response) => {
     }
 
     await sendOTPEmail(email, newOTP);
-    await createOTP(user.email, Number(user.studentId), newOTP);
+    await createOTP(user.email, newOTP, Number(user.studentId));
 
     res.status(200).json({
       success: true,
@@ -408,7 +408,7 @@ export const sendOTPRegistration = async (req: Request, res: Response) => {
     const newOTP = generateOTP();
 
     await sendOTPEmail(email, newOTP);
-    await createOTP(email, 0, newOTP);
+    await createOTP(email, newOTP);
 
     res.status(200).json({
       success: true,
@@ -473,7 +473,7 @@ export const userForgotPassword = async (req: Request, res: Response) => {
     }
 
     const newOTP = generateOTP();
-    await createOTP(email, Number(userData.studentId), newOTP);
+    await createOTP(email, newOTP, Number(userData.studentId));
     await sendOTPEmail(email, newOTP);
 
     res.status(StatusCodes.OK).json({
