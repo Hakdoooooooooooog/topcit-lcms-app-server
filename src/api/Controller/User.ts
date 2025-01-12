@@ -374,7 +374,7 @@ export const retryOTP = async (req: Request, res: Response) => {
   try {
     const newOTP = generateOTP();
 
-    const user = await getUserByEmailorID(email);
+    const user = await getUserDetailsByEmail(email);
 
     if (!user || !user.email) {
       res.status(404).json({
@@ -427,21 +427,12 @@ export const sendOTPRegistration = async (req: Request, res: Response) => {
 
 export const verifyOTP = async (req: Request, res: Response) => {
   const { email, otp } = req.body;
-  const currentTime = new Date().getTime();
 
   try {
     const storedOTP = await getUserStoredOTP(email);
-    const expires_at = new Date(storedOTP.expires_at).getTime();
-
-    const isValidOTP = await checkOTPValidity(
-      otp,
-      storedOTP.otp,
-      currentTime,
-      expires_at
-    );
 
     // Delete the OTP after successful verification
-    if (isValidOTP) {
+    if (storedOTP.otp === otp) {
       await deleteOTP(email);
       res.status(200).json({
         success: true,
