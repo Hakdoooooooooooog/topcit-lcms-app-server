@@ -5,8 +5,8 @@ import {
   users,
 } from "../services/prisma";
 
-export type UserProgress = Pick<users, "userid" | "email"> & {
-  user_progress: Omit<user_progress, "id" | "user_id"> | null;
+export type UserProgress = Pick<users, "studentId" | "email"> & {
+  user_progress: Omit<user_progress, "id" | "student_id"> | null;
   user_completed_chapters: user_completed_chapters[];
 };
 
@@ -22,8 +22,8 @@ export type UserProgressData = {
     }[];
   }[];
   userProgress:
-    | (Pick<users, "userid" | "username"> & {
-        user_progress: Omit<user_progress, "id" | "user_id"> | null;
+    | (Pick<users, "studentId" | "username"> & {
+        user_progress: Omit<user_progress, "id" | "student_id"> | null;
         user_completed_chapters: user_completed_chapters[];
       })
     | null;

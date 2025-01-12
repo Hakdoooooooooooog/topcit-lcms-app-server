@@ -83,41 +83,41 @@ model topics {
 
 model user_completed_chapters {
   id                BigInt    @id @default(autoincrement())
-  user_id           BigInt
+  student_id        BigInt
   chapter_id        BigInt
   completion_status String?   @default("not_started")
   completed_at      DateTime? @default(now()) @db.Timestamp(6)
   topic_id          BigInt
   chapters          chapters  @relation(fields: [chapter_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_2")
   topics            topics    @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users             users     @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_ibfk_1")
+  users             users     @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_completed_chapters_student_id_fkey")
 
   @@index([chapter_id], map: "idx_user_completed_chapters_chapter_id")
-  @@index([user_id], map: "idx_user_completed_chapters_user_id")
+  @@index([student_id], map: "idx_user_completed_chapters_user_id")
 }
 
 model user_multiple_choice_answers {
   id                      BigInt                   @id @default(autoincrement())
   attempt_id              BigInt
   question_id             BigInt
-  user_id                 BigInt
+  student_id              BigInt
   user_selected_option_id BigInt?
   is_correct              Boolean?                 @default(false)
   attemptNumber           Int?                     @db.SmallInt
   user_quiz_attempts      user_quiz_attempts       @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_1")
   objective_questions     objective_questions      @relation(fields: [question_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_2")
-  users                   users                    @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_4")
+  users                   users                    @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_student_id_fkey")
   multiple_choice_options multiple_choice_options? @relation(fields: [user_selected_option_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_multiple_choice_answers_ibfk_3")
 
   @@index([attempt_id], map: "idx_user_multiple_choice_answers_attempt_id")
   @@index([question_id], map: "idx_user_multiple_choice_answers_question_id")
   @@index([user_selected_option_id], map: "idx_user_multiple_choice_answers_selected_option_id")
-  @@index([user_id], map: "idx_user_multiple_choice_answers_user_id")
+  @@index([student_id], map: "idx_user_multiple_choice_answers_user_id")
 }
 
 model user_progress {
   id                BigInt    @id @default(autoincrement())
-  user_id           BigInt    @unique(map: "unq_userid")
+  student_id        BigInt    @unique(map: "unq_userid")
   completed_lessons Int?      @default(0)
   completed_quizzes Int?      @default(0)
   curr_chap_id      BigInt?   @default(1)
@@ -126,14 +126,14 @@ model user_progress {
   chapters          chapters? @relation(fields: [curr_chap_id], references: [id], onDelete: SetDefault, onUpdate: NoAction)
   quiz              quiz?     @relation(fields: [curr_quiz_id], references: [id], onDelete: SetDefault, onUpdate: NoAction)
   topics            topics?   @relation(fields: [curr_topic_id], references: [id], onDelete: SetDefault, onUpdate: NoAction)
-  users             users     @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_ibfk_1")
+  users             users     @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_progress_student_id_fkey")
 
-  @@index([user_id], map: "idx_user_progress_user_id")
+  @@index([student_id], map: "idx_user_progress_user_id")
 }
 
 model user_quiz_attempts {
   id                           BigInt                         @id @default(autoincrement())
-  user_id                      BigInt
+  student_id                   BigInt
   quiz_id                      BigInt
   attempt_count                Int?                           @default(0)
   score                        Int?                           @default(0)
@@ -142,26 +142,26 @@ model user_quiz_attempts {
   timeTaken                    DateTime?                      @db.Time(6)
   user_multiple_choice_answers user_multiple_choice_answers[]
   quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_2")
-  users                        users                          @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction)
+  users                        users                          @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_student_id_fkey")
 
   @@index([quiz_id], map: "idx_user_quiz_attempts_quiz_id")
-  @@index([user_id], map: "idx_user_quiz_attempts_user_id")
+  @@index([student_id], map: "idx_user_quiz_attempts_user_id")
 }
 
 model user_refresh_tokens {
   id         BigInt    @id @default(autoincrement())
-  user_id    BigInt
+  student_id BigInt
   token      String
   created_at DateTime? @default(now()) @db.Timestamp(6)
   expires_at DateTime  @db.Timestamp(6)
-  users      users     @relation(fields: [user_id], references: [userid], onDelete: Cascade, onUpdate: NoAction, map: "user_refresh_tokens_ibfk_1")
+  users      users     @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_refresh_tokens_student_id_fkey")
 
-  @@index([user_id], map: "idx_user_refresh_tokens_user_id")
+  @@index([student_id], map: "idx_user_refresh_tokens_user_id")
 }
 
 model users {
   id                           BigInt                         @id @default(autoincrement())
-  userid                       BigInt                         @unique
+  studentId                    BigInt                         @unique(map: "users_userid_key")
   username                     String
   email                        String                         @unique
   password                     String
@@ -178,17 +178,17 @@ model users {
 model user_completed_quizzes {
   id           Int      @id @default(autoincrement())
   quiz_id      BigInt
-  user_id      BigInt
+  student_id   BigInt
   completed_at DateTime @db.Timestamp(6)
   topic_id     BigInt
   quiz         quiz     @relation(fields: [quiz_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   topics       topics   @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users        users    @relation(fields: [user_id], references: [userid], onDelete: NoAction, onUpdate: NoAction)
+  users        users    @relation(fields: [student_id], references: [studentId], onDelete: NoAction, onUpdate: NoAction, map: "user_completed_quizzes_student_id_fkey")
 }
 
 model user_otp {
   id         BigInt   @id @default(autoincrement())
-  user_id    BigInt   @unique
+  student_id BigInt   @unique(map: "user_otp_user_id_key")
   expires_at DateTime @db.Time(6)
   otp        String?
   email      String   @unique @db.VarChar(255)

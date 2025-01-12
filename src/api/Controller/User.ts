@@ -9,12 +9,12 @@ import {
   getUserById,
   getUserCredentials,
   getUserDetailsByEmail,
-  getUserProgressByUserId,
+  getUserProgressBystudentId,
   getUserRefreshToken,
   getUserStoredOTP,
   updateUserById,
-  updateUserProgressByUserId,
-  updateUserRefreshTokenByUserID,
+  updateUserProgressBystudentId,
+  updateUserRefreshTokenBystudentId,
 } from "../db/User";
 import {
   generateRefreshToken,
@@ -24,6 +24,7 @@ import {
   serializeBigInt,
   generateOTP,
   sendOTPEmail,
+  checkOTPValidity,
 } from "../services";
 
 export const userLogin = async (req: Request, res: Response) => {
@@ -39,7 +40,9 @@ export const userLogin = async (req: Request, res: Response) => {
       return;
     }
 
-    const refreshTokenData = await getUserRefreshToken(Number(userData.userid));
+    const refreshTokenData = await getUserRefreshToken(
+      Number(userData.studentId)
+    );
 
     await checkUserRefreshTokenValidity(
       refreshTokenData.expires_at,
@@ -48,7 +51,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
     // Generate access token and set cookie
     const accessToken = await generateAuthenticatedToken({
-      userId: Number(userData.userid),
+      studentId: Number(userData.studentId),
       role: userData.role,
       refreshToken: refreshTokenData.token,
     });
@@ -57,7 +60,7 @@ export const userLogin = async (req: Request, res: Response) => {
     res.status(200).json(
       serializeBigInt({
         message: "Login successfully",
-        userId: userData.userid,
+        studentId: userData.studentId,
         role: userData.role,
       })
     );
@@ -68,14 +71,14 @@ export const userLogin = async (req: Request, res: Response) => {
         const newRefreshToken = await generateRefreshToken(data);
 
         // Update refresh token in database
-        await updateUserRefreshTokenByUserID(
-          Number(data.userid),
+        await updateUserRefreshTokenBystudentId(
+          Number(data.studentId),
           newRefreshToken
         );
 
         // Generate access token and set cookie
         const accessToken = await generateAuthenticatedToken({
-          userId: Number(data.userid),
+          studentId: Number(data.studentId),
           role: data.role,
           refreshToken: newRefreshToken,
         });
@@ -84,7 +87,7 @@ export const userLogin = async (req: Request, res: Response) => {
         res.status(StatusCodes.OK).json(
           serializeBigInt({
             message: "Login successfully",
-            userId: data.userid,
+            studentId: data.studentId,
             role: data.role,
           })
         );
@@ -103,7 +106,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
         // Create refresh token in database
         const tokenData = await createUserRefreshToken(
-          Number(userData.userid),
+          Number(userData.studentId),
           refreshToken
         );
 
@@ -114,7 +117,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
         // Generate access token and set cookie
         const accessToken = await generateAuthenticatedToken({
-          userId: Number(userData.userid),
+          studentId: Number(userData.studentId),
           role: userData.role,
           refreshToken,
         });
@@ -123,7 +126,7 @@ export const userLogin = async (req: Request, res: Response) => {
         res.status(StatusCodes.OK).json(
           serializeBigInt({
             message: "Login successfully",
-            userId: userData.userid,
+            studentId: userData.studentId,
             role: userData.role,
           })
         );
@@ -143,19 +146,19 @@ export const userLogin = async (req: Request, res: Response) => {
 };
 
 export const userRegister = async (req: Request, res: Response) => {
-  const { username, userid, email, password, otp } = req.body;
+  const { username, studentId, email, password, otp } = req.body;
   const errors = [];
 
   try {
-    const userData = await getUserByEmailorID(email, Number(userid));
+    const userData = await getUserByEmailorID(email, Number(studentId));
 
     if (userData) {
       if (userData.email) {
         errors.push({ email: "Email already exists" });
       }
 
-      if (userData.userid) {
-        errors.push({ userid: "User ID already exists" });
+      if (userData.studentId) {
+        errors.push({ studentId: "User ID already exists" });
       }
     }
 
@@ -183,7 +186,7 @@ export const userRegister = async (req: Request, res: Response) => {
 
     const data = await createUser({
       username,
-      userid,
+      studentId,
       email,
       password,
     });
@@ -199,20 +202,20 @@ export const userRegister = async (req: Request, res: Response) => {
 };
 
 export const userData = async (req: Request, res: Response) => {
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
   if (!isAuth) {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
-  if (res.locals.userId !== Number(userId)) {
+  if (res.locals.studentId !== Number(studentId)) {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
   try {
-    const data = await getUserById(Number(userId));
+    const data = await getUserById(Number(studentId));
 
     if (!data) {
       res.sendStatus(StatusCodes.BAD_REQUEST);
@@ -221,7 +224,7 @@ export const userData = async (req: Request, res: Response) => {
 
     res.status(StatusCodes.OK).json(
       serializeBigInt({
-        userid: data.userid,
+        studentId: data.studentId,
         username: data.username,
         email: data.email,
       })
@@ -236,20 +239,20 @@ export const userData = async (req: Request, res: Response) => {
 };
 
 export const userProgressTrack = async (req: Request, res: Response) => {
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
   if (!isAuth) {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
-  if (res.locals.userId !== Number(userId)) {
+  if (res.locals.studentId !== Number(studentId)) {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
   try {
-    const progress = await getUserProgressByUserId(Number(userId));
+    const progress = await getUserProgressBystudentId(Number(studentId));
 
     if (!progress) {
       res.sendStatus(StatusCodes.BAD_REQUEST);
@@ -266,27 +269,27 @@ export const userProgressTrack = async (req: Request, res: Response) => {
 
 export const updateUserData = async (req: Request, res: Response) => {
   const { username } = req.body;
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
   if (!username) {
     res.sendStatus(StatusCodes.BAD_REQUEST);
     return;
   }
 
-  if (res.locals.userId !== Number(userId) || !isAuth) {
+  if (res.locals.studentId !== Number(studentId) || !isAuth) {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
   try {
-    const user = await getUserById(Number(userId));
+    const user = await getUserById(Number(studentId));
 
     if (!user) {
       res.sendStatus(StatusCodes.BAD_REQUEST);
       return;
     }
 
-    const updatedData = await updateUserById(Number(userId), {
+    const updatedData = await updateUserById(Number(studentId), {
       username,
     });
 
@@ -307,29 +310,29 @@ export const updateUserChapterProgress = async (
   req: Request,
   res: Response
 ) => {
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
   const { chapterId, topic_id } = req.body;
 
-  if (!userId || !chapterId || !isAuth || !topic_id) {
+  if (!studentId || !chapterId || !isAuth || !topic_id) {
     res.sendStatus(StatusCodes.BAD_REQUEST);
     return;
   }
 
-  if (res.locals.userId !== Number(userId) || isAuth === "false") {
+  if (res.locals.studentId !== Number(studentId) || isAuth === "false") {
     res.sendStatus(StatusCodes.UNAUTHORIZED);
     return;
   }
 
   try {
-    const progressData = await getUserProgressByUserId(Number(userId));
+    const progressData = await getUserProgressBystudentId(Number(studentId));
 
     if (!progressData.user_progress) {
       res.sendStatus(StatusCodes.BAD_REQUEST);
       return;
     }
 
-    const updateProgress = await updateUserProgressByUserId(
-      Number(userId),
+    const updateProgress = await updateUserProgressBystudentId(
+      Number(studentId),
       Number(topic_id),
       progressData.user_progress
     );
@@ -341,7 +344,7 @@ export const updateUserChapterProgress = async (
       return;
     }
 
-    const updatedProgress = await getUserProgressByUserId(Number(userId));
+    const updatedProgress = await getUserProgressBystudentId(Number(studentId));
 
     if (!updatedProgress) {
       res
@@ -366,11 +369,6 @@ export const updateUserChapterProgress = async (
   }
 };
 
-export const userLogout = async (req: Request, res: Response) => {
-  res.clearCookie("accessToken");
-  res.status(StatusCodes.OK).json({ message: "Logged out" });
-};
-
 export const retryOTP = async (req: Request, res: Response) => {
   const { email } = req.body;
   try {
@@ -387,7 +385,7 @@ export const retryOTP = async (req: Request, res: Response) => {
     }
 
     await sendOTPEmail(email, newOTP);
-    await createOTP(user.email, Number(user.userid), newOTP);
+    await createOTP(user.email, Number(user.studentId), newOTP);
 
     res.status(200).json({
       success: true,
@@ -398,6 +396,8 @@ export const retryOTP = async (req: Request, res: Response) => {
       success: false,
       message: "Failed to process OTP verification:" + error.message,
     });
+  } finally {
+    res.end();
   }
 };
 
@@ -406,6 +406,7 @@ export const sendOTPRegistration = async (req: Request, res: Response) => {
 
   try {
     const newOTP = generateOTP();
+
     await sendOTPEmail(email, newOTP);
     await createOTP(email, 0, newOTP);
 
@@ -414,47 +415,58 @@ export const sendOTPRegistration = async (req: Request, res: Response) => {
       message: "OTP sent successfully to " + email,
     });
   } catch (error: any) {
+    console.log(error);
     res.status(500).json({
       success: false,
-      message: "Failed to process OTP verification:" + error.message,
+      message: "Failed to send OTP:" + error.message,
     });
+  } finally {
+    res.end();
   }
 };
 
 export const verifyOTP = async (req: Request, res: Response) => {
   const { email, otp } = req.body;
+  const currentTime = new Date().getTime();
 
   try {
     const storedOTP = await getUserStoredOTP(email);
+    const expires_at = new Date(storedOTP.expires_at).getTime();
 
-    if (!storedOTP) {
-      res.status(404).json({
-        success: false,
-        message: "OTP not found",
+    const isValidOTP = await checkOTPValidity(
+      otp,
+      storedOTP.otp,
+      currentTime,
+      expires_at
+    );
+
+    // Delete the OTP after successful verification
+    if (isValidOTP) {
+      await deleteOTP(email);
+      res.status(200).json({
+        success: true,
+        message: "OTP verified successfully",
       });
-      return;
     }
-
-    if (storedOTP.otp !== otp) {
-      res.status(401).json({
+  } catch (error: any) {
+    if (error.message === "Invalid OTP") {
+      res.status(400).json({
         success: false,
         message: "Invalid OTP",
       });
-      return;
+    } else if (error.message === "OTP expired") {
+      res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Failed to process OTP verification:" + error.message,
+      });
     }
-
-    // Delete the OTP after successful verification
-    await deleteOTP(email);
-    res.status(200).json({
-      success: true,
-      message: "OTP verified successfully",
-    });
-  } catch (error) {
-    console.error("OTP verification error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to process OTP verification",
-    });
+  } finally {
+    res.end();
   }
 };
 
@@ -464,13 +476,13 @@ export const userForgotPassword = async (req: Request, res: Response) => {
   try {
     const userData = await getUserDetailsByEmail(email);
 
-    if (!userData.userid) {
+    if (!userData.studentId) {
       res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
       return;
     }
 
     const newOTP = generateOTP();
-    await createOTP(email, Number(userData.userid), newOTP);
+    await createOTP(email, Number(userData.studentId), newOTP);
     await sendOTPEmail(email, newOTP);
 
     res.status(StatusCodes.OK).json({
@@ -505,12 +517,7 @@ export const userUpdatePassword = async (req: Request, res: Response) => {
   try {
     const userData = await getUserDetailsByEmail(email);
 
-    if (!userData) {
-      res.status(StatusCodes.BAD_REQUEST).json({ message: "User not found" });
-      return;
-    }
-
-    const updatedData = await updateUserById(Number(userData.userid), {
+    const updatedData = await updateUserById(Number(userData.studentId), {
       password,
       email: userData.email,
     });

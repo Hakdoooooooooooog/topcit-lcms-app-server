@@ -47,17 +47,17 @@ export const refreshTokenExpiration = () => {
 };
 
 export const generateAuthenticatedToken = async ({
-  userId,
+  studentId,
   role,
   refreshToken,
 }: {
-  userId: number;
+  studentId: number;
   role: string;
   refreshToken: string;
 }): Promise<string> => {
   return new Promise((resolve, reject) => {
     jwt.sign(
-      { userId: userId, role: role, refreshToken },
+      { studentId: studentId, role: role, refreshToken },
       process.env.JWT_ACCESS_TOKEN_SECRET as string,
       {
         expiresIn: "15m",
@@ -69,6 +69,25 @@ export const generateAuthenticatedToken = async ({
         resolve(token as string);
       }
     );
+  });
+};
+
+export const checkOTPValidity = async (
+  otp: string,
+  storedOTP: string,
+  currentTime: Number,
+  expires_at: Number
+): Promise<boolean> => {
+  return new Promise((resolve, reject) => {
+    if (otp !== storedOTP) {
+      reject(new Error("Invalid OTP"));
+    }
+
+    if (currentTime > expires_at) {
+      reject(new Error("OTP expired"));
+    }
+
+    resolve(true);
   });
 };
 
@@ -110,8 +129,8 @@ export const extractUserRole = (accessToken: JwtPayload) => {
   return accessToken.role;
 };
 
-export const extractUserId = (accessToken: JwtPayload) => {
-  return accessToken.userId;
+export const extractstudentId = (accessToken: JwtPayload) => {
+  return accessToken.studentId;
 };
 
 export const setUserCookie = (res: any, token: string, title: string) => {

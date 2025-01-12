@@ -5,7 +5,6 @@ import {
   updateUserData,
   userData,
   userForgotPassword,
-  userLogout,
   userProgressTrack,
   userUpdatePassword,
   verifyOTP,
@@ -35,7 +34,6 @@ export default (router: Router) => {
     updateUserData
   );
 
-  router.post("/user/logout", userLogout);
   router.post(
     "/user/forgot-password",
     validateData({ schema: OTPVerificationSchema }),

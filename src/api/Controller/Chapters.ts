@@ -18,7 +18,7 @@ import { s3 } from "../services/s3Client";
 import { getSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { chapters, files, user_progress } from "@prisma/client";
 import { compress } from "compress-pdf";
-import { getUserProgressByUserId } from "../db/User";
+import { getUserProgressBystudentId } from "../db/User";
 import { UserProgress } from "../types/users";
 
 const { BUCKET_NAME, CLOUDFRONT_KEY_PAIR_ID, CLOUDFRONT_PRIVATE_KEY } =
@@ -54,7 +54,7 @@ export const getChapterFilesByChapterId = async (
   req: Request,
   res: Response
 ) => {
-  const { userId, userRole, isAuth } = req.query;
+  const { studentId, userRole, isAuth } = req.query;
   const chapter_id = req.params.chapter_id;
   const topic_id = req.query.topic_id;
 
@@ -68,7 +68,7 @@ export const getChapterFilesByChapterId = async (
     return;
   }
 
-  if (!userId || isNaN(Number(userId)) || Number(userId) < 0) {
+  if (!studentId || isNaN(Number(studentId)) || Number(studentId) < 0) {
     res.sendStatus(400);
     return;
   }
@@ -87,7 +87,7 @@ export const getChapterFilesByChapterId = async (
     if (userRole === "user") {
       const chapterFiles = await Promise.all([
         getChapterPDFByChapterId(Number(chapter_id)),
-        getUserProgressByUserId(Number(userId)),
+        getUserProgressBystudentId(Number(studentId)),
       ])
         .then((res) => {
           return {

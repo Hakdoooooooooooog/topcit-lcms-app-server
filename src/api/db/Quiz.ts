@@ -5,23 +5,14 @@ import {
   user_quiz_attempts,
   topics,
 } from "../services/prisma";
-import { QuizDetails } from "../types/quiz";
-
-interface QuizWithObjectiveQuestions extends quiz {
-  user_quiz_attempts: user_quiz_attempts[] | null;
-  objective_questions: Omit<objective_questions, "correct_answer">[];
-}
-
-interface TopicWithQuizAndObjectiveQuestion extends topics {
-  quiz: QuizWithObjectiveQuestions[];
-}
-
-interface QuizzesAssessment extends topics {
-  quiz: Omit<QuizWithObjectiveQuestions, "user_quiz_attempts">[];
-}
+import {
+  QuizDetails,
+  QuizzesAssessment,
+  TopicWithQuizAndObjectiveQuestion,
+} from "../types/quiz";
 
 export const getTopicWithQuizAndObjectiveQuestion = async (
-  userId: number
+  studentId: number
 ): Promise<TopicWithQuizAndObjectiveQuestion[]> => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -43,12 +34,12 @@ export const getTopicWithQuizAndObjectiveQuestion = async (
               created_at: true,
               user_quiz_attempts: {
                 where: {
-                  user_id: userId,
+                  student_id: studentId,
                 },
                 select: {
                   id: true,
                   quiz_id: true,
-                  user_id: true,
+                  student_id: true,
                   start_time: true,
                   completed_at: true,
                   score: true,
@@ -57,6 +48,9 @@ export const getTopicWithQuizAndObjectiveQuestion = async (
                 },
               },
               objective_questions: {
+                orderBy: {
+                  id: "asc",
+                },
                 select: {
                   id: true,
                   quiz_id: true,
@@ -105,6 +99,9 @@ export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
                 max_attempts: true,
                 created_at: true,
                 objective_questions: {
+                  orderBy: {
+                    id: "asc",
+                  },
                   select: {
                     id: true,
                     quiz_id: true,
@@ -283,7 +280,7 @@ export const editQuiz = async (
 };
 
 export const getQuizUserAttempt = async (
-  userId: number,
+  studentId: number,
   quizId: number
 ): Promise<user_quiz_attempts> => {
   return new Promise(async (resolve, reject) => {
@@ -292,7 +289,7 @@ export const getQuizUserAttempt = async (
         where: {
           quiz_id: quizId,
           AND: {
-            user_id: userId,
+            student_id: studentId,
           },
         },
       });
@@ -311,7 +308,7 @@ export const getQuizUserAttempt = async (
 // Start initial quiz attempt if user starts quiz
 export const initialQuizAttempt = async (
   quizId: number,
-  userId: number,
+  studentId: number,
   startedAt: Date
 ): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
@@ -319,7 +316,7 @@ export const initialQuizAttempt = async (
       await prisma.user_quiz_attempts.create({
         data: {
           quiz_id: quizId,
-          user_id: userId,
+          student_id: studentId,
           start_time: startedAt,
         },
       });
@@ -335,7 +332,7 @@ export const initialQuizAttempt = async (
 export const updateExistingInitialQuizAttempt = async (
   attemptId: number,
   quizId: number,
-  userId: number,
+  studentId: number,
   startedAt: Date
 ): Promise<Error | { message: string }> => {
   return new Promise(async (resolve, reject) => {
@@ -345,7 +342,7 @@ export const updateExistingInitialQuizAttempt = async (
           id: attemptId,
           AND: {
             quiz_id: quizId,
-            user_id: userId,
+            student_id: studentId,
           },
         },
         data: {
@@ -363,7 +360,7 @@ export const updateExistingInitialQuizAttempt = async (
 // Submit quiz attempt
 export const submitQuizAttempt = async (
   quizId: number,
-  userId: number,
+  studentId: number,
   quizUserObjectiveAnswers: { question_id: number; user_answer: string }[]
 ): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
@@ -373,7 +370,7 @@ export const submitQuizAttempt = async (
           // Get user quiz attempt
           const userQuizAttempt = await tx.user_quiz_attempts.findFirst({
             where: {
-              user_id: userId,
+              student_id: studentId,
               quiz_id: quizId,
               start_time: {
                 not: null,
@@ -418,7 +415,7 @@ export const submitQuizAttempt = async (
               data: quizUserObjectiveAnswers.map((answer) => {
                 return {
                   attempt_id: userQuizAttempt.id,
-                  user_id: userId,
+                  student_id: studentId,
                   question_id: answer.question_id,
                   user_selected_option_id: getMultipleChoiceId.find(
                     (option) =>
@@ -440,7 +437,7 @@ export const submitQuizAttempt = async (
               where: {
                 attempt_id: userQuizAttempt.id,
                 AND: {
-                  user_id: userId,
+                  student_id: studentId,
                   attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
                 },
               },
@@ -494,7 +491,7 @@ export const submitQuizAttempt = async (
               where: {
                 attempt_id: userQuizAttempt.id,
                 AND: {
-                  user_id: userId,
+                  student_id: studentId,
                   multiple_choice_options: {
                     objective_questions: {
                       quiz_id: quizId,
@@ -521,7 +518,7 @@ export const submitQuizAttempt = async (
               where: {
                 attempt_id: userQuizAttempt.id,
                 AND: {
-                  user_id: userId,
+                  student_id: studentId,
                   attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
                 },
               },
@@ -564,7 +561,7 @@ export const submitQuizAttempt = async (
           const userExistingCompletedQuizzes =
             await tx.user_completed_quizzes.findFirst({
               where: {
-                user_id: userQuizAttempt.user_id,
+                student_id: userQuizAttempt.student_id,
                 quiz_id: userQuizAttempt.quiz_id,
               },
               select: {
@@ -592,7 +589,7 @@ export const submitQuizAttempt = async (
                     },
                   })
                 )?.topic_id ?? 0, // Provide a default value or handle appropriately
-              user_id: userQuizAttempt.user_id,
+              student_id: userQuizAttempt.student_id,
               quiz_id: userQuizAttempt.quiz_id,
               completed_at: new Date(),
             },
@@ -604,10 +601,10 @@ export const submitQuizAttempt = async (
 
           const userProgressSet = await tx.user_progress.upsert({
             where: {
-              user_id: userId,
+              student_id: studentId,
             },
             create: {
-              user_id: userId,
+              student_id: studentId,
               curr_quiz_id: quizId,
             },
             update: {

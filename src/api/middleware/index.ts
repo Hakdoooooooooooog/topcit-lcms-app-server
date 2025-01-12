@@ -15,7 +15,7 @@ export const verifyAndGenerateUserExpiredToken = async (
   req: Request,
   res: Response
 ) => {
-  const { userId, isAuth } = req.body;
+  const { studentId, isAuth } = req.body;
   const accessToken = req.cookies.accessToken;
 
   if (!accessToken) {
@@ -23,7 +23,7 @@ export const verifyAndGenerateUserExpiredToken = async (
     return;
   }
 
-  if (!userId || !isAuth) {
+  if (!studentId || !isAuth) {
     res.status(StatusCodes.BAD_REQUEST).json({
       message: "Invalid data",
     });
@@ -37,7 +37,7 @@ export const verifyAndGenerateUserExpiredToken = async (
     res.status(StatusCodes.OK).json({
       message: result.message,
       userData: {
-        userId: userId,
+        studentId: studentId,
         isAuth: isAuth,
         role: userRole,
       },
@@ -45,18 +45,20 @@ export const verifyAndGenerateUserExpiredToken = async (
   } catch (error: any) {
     if (error.message === "Access token expired") {
       try {
-        // Get user data by userId
-        const userData = await getUserById(userId);
+        // Get user data by studentId
+        const userData = await getUserById(studentId);
 
         // Get user refresh token and check if it's still valid
-        const refreshToken = await getUserRefreshToken(Number(userData.userid));
+        const refreshToken = await getUserRefreshToken(
+          Number(userData.studentId)
+        );
         await checkUserRefreshTokenValidity(
           new Date(refreshToken.expires_at),
           new Date()
         );
 
         const newToken = await generateAuthenticatedToken({
-          userId: Number(userData.userid),
+          studentId: Number(userData.studentId),
           role: userData.role,
           refreshToken: refreshToken.token,
         });
@@ -65,7 +67,7 @@ export const verifyAndGenerateUserExpiredToken = async (
         res.status(StatusCodes.OK).json({
           message: "Access token refreshed",
           userData: serializeBigInt({
-            userId: userData.userid,
+            studentId: userData.studentId,
             isAuth: isAuth as boolean,
             role: userData.role,
           }),

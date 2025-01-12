@@ -6,7 +6,7 @@ import {
   generateAuthenticatedToken,
   setUserCookie,
   decodeAccessToken,
-  extractUserId,
+  extractstudentId,
   checkUserRefreshTokenValidity,
 } from "../services";
 import { getUserById, getUserRefreshToken } from "../db/User";
@@ -53,15 +53,19 @@ export const validateUserToken = async (
   try {
     await verifyAccessToken(accessToken);
     const decodedToken = decodeAccessToken(accessToken);
-    const userId = extractUserId(decodedToken);
+    const studentId = extractstudentId(decodedToken);
 
-    res.locals.userId = userId;
+    res.locals.studentId = studentId;
     next();
   } catch (error: any) {
     if (error.message === "Access token expired") {
       try {
-        const userData = await getUserById(Number(req.query.userId as string));
-        const refreshToken = await getUserRefreshToken(Number(userData.userid));
+        const userData = await getUserById(
+          Number(req.query.studentId as string)
+        );
+        const refreshToken = await getUserRefreshToken(
+          Number(userData.studentId)
+        );
 
         await checkUserRefreshTokenValidity(
           new Date(refreshToken.expires_at),
@@ -69,15 +73,15 @@ export const validateUserToken = async (
         );
 
         const newToken = await generateAuthenticatedToken({
-          userId: Number(userData.userid),
+          studentId: Number(userData.studentId),
           role: userData.role,
           refreshToken: refreshToken.token,
         });
 
         const decodedToken = decodeAccessToken(newToken);
-        const userId = extractUserId(decodedToken);
+        const studentId = extractstudentId(decodedToken);
 
-        res.locals.userId = userId;
+        res.locals.studentId = studentId;
         setUserCookie(res, accessToken, "accessToken");
         next();
       } catch (error: any) {

@@ -44,12 +44,12 @@ export async function getUserCredentials(
 }
 
 export async function getUserById(
-  userID: number
+  studentId: number
 ): Promise<Omit<users, "id" | "created_at" | "password">> {
   return new Promise(async (resolve, reject) => {
     const userData = await prisma.users.findUnique({
       where: {
-        userid: userID,
+        studentId: studentId,
       },
     });
 
@@ -61,7 +61,7 @@ export async function getUserById(
   });
 }
 export async function getUserRefreshToken(
-  userId: number
+  studentId: number
 ): Promise<Pick<user_refresh_tokens, "id" | "token" | "expires_at">> {
   return new Promise(async (resolve, reject) => {
     const refreshToken = await prisma.user_refresh_tokens.findFirst({
@@ -71,7 +71,7 @@ export async function getUserRefreshToken(
         expires_at: true,
       },
       where: {
-        user_id: userId,
+        student_id: studentId,
       },
     });
 
@@ -83,12 +83,12 @@ export async function getUserRefreshToken(
   });
 }
 
-export async function updateUserRefreshTokenByUserID(
-  userId: number,
+export async function updateUserRefreshTokenBystudentId(
+  studentId: number,
   refreshToken: string
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
-    const userToken = await getUserRefreshToken(userId);
+    const userToken = await getUserRefreshToken(studentId);
     if (!userToken) {
       return reject({ message: "Refresh token not found" });
     }
@@ -97,7 +97,7 @@ export async function updateUserRefreshTokenByUserID(
       where: {
         id: userToken.id,
         AND: {
-          user_id: userId,
+          student_id: studentId,
         },
       },
       data: {
@@ -116,13 +116,13 @@ export async function updateUserRefreshTokenByUserID(
 }
 
 export function createUserRefreshToken(
-  userId: number,
+  studentId: number,
   refreshToken: string
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
     const createToken = await prisma.user_refresh_tokens.create({
       data: {
-        user_id: userId,
+        student_id: studentId,
         token: refreshToken,
         expires_at: refreshTokenExpiration(),
       },
@@ -164,7 +164,7 @@ export function getUserStoredOTP(
 export function createUser(
   user: Omit<users, "id" | "role" | "created_at">
 ): Promise<{ message: string; errors?: any }> {
-  const { username, userid, email, password } = user;
+  const { username, studentId, email, password } = user;
 
   return new Promise(async (resolve, reject) => {
     const hashedPassword = await hashPassword(password);
@@ -184,7 +184,7 @@ export function createUser(
         return tx.users.create({
           data: {
             username: username,
-            userid: userid,
+            studentId: studentId,
             email: email,
             password: hashedPassword,
             user_progress: {
@@ -230,7 +230,7 @@ export function createUser(
 
 export function createOTP(
   email: string,
-  user_id: number,
+  student_id: number,
   otp: string
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
@@ -238,17 +238,18 @@ export function createOTP(
       const OTPTransaction = await prisma.$transaction(async (tx) => {
         const OTPcreate = await tx.user_otp.upsert({
           where: {
-            email: email,
+            student_id: student_id,
           },
           update: {
             otp: otp,
-            user_id: user_id,
+            student_id: student_id,
+            email: email,
             expires_at: new Date(Date.now() + 300000),
           },
           create: {
             email: email,
             otp: otp,
-            user_id: user_id,
+            student_id: student_id,
             expires_at: new Date(Date.now() + 300000),
           },
         });
@@ -283,10 +284,10 @@ export const deleteOTP = async (
   });
 };
 
-export function updateUserProgressByUserId(
-  user_id: number,
+export function updateUserProgressBystudentId(
+  student_id: number,
   topic_id: number,
-  progress: Omit<user_progress, "id" | "user_id">
+  progress: Omit<user_progress, "id" | "student_id">
 ): Promise<{ message: string }> {
   return new Promise(async (resolve, reject) => {
     const updateProgressTransaction = await prisma.$transaction(async (tx) => {
@@ -302,7 +303,7 @@ export function updateUserProgressByUserId(
 
       const addCompletedChapter = await tx.user_completed_chapters.create({
         data: {
-          user_id: user_id,
+          student_id: student_id,
           chapter_id: progress.curr_chap_id ?? 0,
           topic_id: progress.curr_topic_id ?? 0,
           completion_status: "completed",
@@ -316,7 +317,7 @@ export function updateUserProgressByUserId(
       const userCompletedChapterPerTopic =
         await tx.user_completed_chapters.count({
           where: {
-            user_id: user_id,
+            student_id: student_id,
             AND: {
               topic_id: progress.curr_topic_id ? progress.curr_topic_id : 0,
               completion_status: "completed",
@@ -331,14 +332,14 @@ export function updateUserProgressByUserId(
 
       const completedChapters = await tx.user_completed_chapters.count({
         where: {
-          user_id: user_id,
+          student_id: student_id,
           completion_status: "completed",
         },
       });
 
       const userProgress = await tx.user_progress.upsert({
         where: {
-          user_id: user_id,
+          student_id: student_id,
         },
         update: {
           ...progress,
@@ -347,7 +348,7 @@ export function updateUserProgressByUserId(
           completed_lessons: completedChapters,
         },
         create: {
-          user_id: user_id,
+          student_id: student_id,
           ...progress,
           completed_lessons: 0,
         },
@@ -364,16 +365,18 @@ export function updateUserProgressByUserId(
   });
 }
 
-export function getUserProgressByUserId(userId: number): Promise<UserProgress> {
+export function getUserProgressBystudentId(
+  studentId: number
+): Promise<UserProgress> {
   return new Promise(async (resolve, reject) => {
     const userProgress = await prisma.$transaction(async (tx) => {
       const userProgressSet = await tx.user_progress.upsert({
         where: {
-          user_id: userId,
+          student_id: studentId,
         },
         update: {},
         create: {
-          user_id: userId,
+          student_id: studentId,
         },
       });
 
@@ -383,10 +386,10 @@ export function getUserProgressByUserId(userId: number): Promise<UserProgress> {
 
       const userProgress = await tx.users.findUnique({
         where: {
-          userid: userId,
+          studentId: studentId,
         },
         select: {
-          userid: true,
+          studentId: true,
           username: true,
           email: true,
           user_progress: {
@@ -424,29 +427,32 @@ export function getUserByEmail(email: string): Promise<users[]> {
 
 export function getUserByEmailorID(
   email?: string,
-  userid?: number
+  studentId?: number
 ): Promise<{
   email?: string;
-  userid?: bigint;
+  studentId?: bigint;
 }> {
   return new Promise(async (resolve, reject) => {
     const userData = await prisma.users.findFirst({
       where: {
-        OR: [{ email: email }, { userid: BigInt(userid ?? 0) }],
+        OR: [{ email: email }, { studentId: BigInt(studentId ?? 0) }],
       },
       select: {
         email: true,
-        userid: true,
+        studentId: true,
       },
     });
 
     if (userData) {
-      if (userData.email === email && Number(userData.userid) === userid) {
-        resolve({ email: userData.email, userid: userData.userid });
+      if (
+        userData.email === email &&
+        Number(userData.studentId) === studentId
+      ) {
+        resolve({ email: userData.email, studentId: userData.studentId });
       } else if (userData.email === email) {
         resolve({ email: userData.email });
-      } else if (Number(userData.userid) === userid) {
-        resolve({ userid: userData.userid });
+      } else if (Number(userData.studentId) === studentId) {
+        resolve({ studentId: userData.studentId });
       }
       resolve(userData);
     } else {
@@ -457,14 +463,14 @@ export function getUserByEmailorID(
 
 export function getUserDetailsByEmail(
   email: string
-): Promise<Pick<users, "userid" | "email">> {
+): Promise<Pick<users, "studentId" | "email">> {
   return new Promise(async (resolve, reject) => {
     const userData = await prisma.users.findFirst({
       where: {
         email: email,
       },
       select: {
-        userid: true,
+        studentId: true,
         email: true,
       },
     });
@@ -478,7 +484,7 @@ export function getUserDetailsByEmail(
 }
 
 export function updateUserById(
-  userId: number,
+  studentId: number,
   user: {
     username?: string;
     email?: string;
@@ -492,7 +498,7 @@ export function updateUserById(
       const hashedPassword = await hashPassword(password);
       const updateUser = await prisma.users.update({
         where: {
-          userid: userId,
+          studentId: studentId,
         },
         data: {
           username: username,
@@ -509,7 +515,7 @@ export function updateUserById(
     } else {
       const updateUser = await prisma.users.update({
         where: {
-          userid: userId,
+          studentId: studentId,
         },
         data: {
           username: username,

@@ -15,9 +15,9 @@ import { z } from "zod";
 import { QuizSchemaStage2 } from "../schema/Quiz";
 
 export const TopicWithQuiz = async (req: Request, res: Response) => {
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
-  if (!userId || !isAuth) {
+  if (!studentId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
@@ -29,7 +29,7 @@ export const TopicWithQuiz = async (req: Request, res: Response) => {
 
   try {
     const chapter = await getTopicWithQuizAndObjectiveQuestion(
-      parseInt(userId as string)
+      parseInt(studentId as string)
     );
 
     res.status(200).json(serializeBigInt(chapter));
@@ -39,9 +39,9 @@ export const TopicWithQuiz = async (req: Request, res: Response) => {
 };
 
 export const TopicQuizAssessments = async (req: Request, res: Response) => {
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
-  if (!userId || !isAuth) {
+  if (!studentId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
@@ -62,14 +62,14 @@ export const TopicQuizAssessments = async (req: Request, res: Response) => {
 
 export const UpdateQuiz = async (req: Request, res: Response) => {
   const { topicId, quizTitle, maxAttempts, quizQuestions } = req.body;
-  const { isAuth, userId } = req.query;
+  const { isAuth, studentId } = req.query;
 
   if (
     !topicId ||
     !quizTitle ||
     !quizQuestions ||
     !isAuth ||
-    !userId ||
+    !studentId ||
     !maxAttempts
   ) {
     res.status(400).json({ message: "Invalid request" });
@@ -117,14 +117,14 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
 
 export const CreateQuiz = async (req: Request, res: Response) => {
   const { topicId, quizTitle, maxAttempts, quizQuestions } = req.body;
-  const { isAuth, userId } = req.query;
+  const { isAuth, studentId } = req.query;
 
   if (
     !topicId ||
     !quizTitle ||
     !quizQuestions ||
     !isAuth ||
-    !userId ||
+    !studentId ||
     !maxAttempts
   ) {
     res.status(400).json({ message: "Invalid request" });
@@ -176,9 +176,9 @@ export const CreateQuiz = async (req: Request, res: Response) => {
 
 export const StartQuiz = async (req: Request, res: Response) => {
   const { topicId, quizId } = req.body;
-  const { userId, isAuth } = req.query;
+  const { studentId, isAuth } = req.query;
 
-  if (!topicId || !userId || !quizId || !isAuth) {
+  if (!topicId || !studentId || !quizId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
@@ -190,14 +190,14 @@ export const StartQuiz = async (req: Request, res: Response) => {
 
   try {
     const userAttempt = await getQuizUserAttempt(
-      parseInt(userId as string),
+      parseInt(studentId as string),
       parseInt(quizId as string)
     );
 
     const result = await updateExistingInitialQuizAttempt(
       Number(userAttempt.id),
       Number(userAttempt.quiz_id),
-      Number(userAttempt.user_id),
+      Number(userAttempt.student_id),
       new Date()
     );
 
@@ -207,7 +207,7 @@ export const StartQuiz = async (req: Request, res: Response) => {
       try {
         await initialQuizAttempt(
           parseInt(quizId as string),
-          parseInt(userId as string),
+          parseInt(studentId as string),
           new Date()
         );
 
@@ -220,10 +220,10 @@ export const StartQuiz = async (req: Request, res: Response) => {
 };
 
 export const SubmitQuiz = async (req: Request, res: Response) => {
-  const { topicId, userId, quizId, isAuth } = req.query;
+  const { topicId, studentId, quizId, isAuth } = req.query;
   const assessmentData: { [quizID: string]: string } = req.body;
 
-  if (!topicId || !userId || !quizId || !isAuth) {
+  if (!topicId || !studentId || !quizId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
@@ -251,7 +251,7 @@ export const SubmitQuiz = async (req: Request, res: Response) => {
 
     const result = await submitQuizAttempt(
       parseInt(quizId as string),
-      parseInt(userId as string),
+      parseInt(studentId as string),
       quizUserObjectiveAnswers
     );
 
