@@ -7,8 +7,8 @@ import router from "./api/router";
 import passport from "passport";
 import "./api/services/passport";
 import session from "express-session";
-
 export const app = express();
+
 const corsOptions: CorsOptions = {
   origin: process.env.CLIENT_URL,
   credentials: true,
@@ -24,7 +24,6 @@ if (!process.env.SESSION_SECRET) {
 
 // Apply CORS before other middleware
 app.use(cors(corsOptions));
-
 app.set("trust proxy", 1);
 
 // Session configuration
