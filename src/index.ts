@@ -1,12 +1,9 @@
 import express from "express";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import "dotenv/config";
 import cors, { CorsOptions } from "cors";
+import "dotenv/config";
 import router from "./api/router";
-import passport from "passport";
-import "./api/services/passport";
-import session from "express-session";
 export const app = express();
 
 const corsOptions: CorsOptions = {
@@ -16,29 +13,8 @@ const corsOptions: CorsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-const MemoryStore = require("memorystore")(session);
-
-if (!process.env.SESSION_SECRET) {
-  throw new Error("Session secret is required");
-}
-
 // Apply CORS before other middleware
 app.use(cors(corsOptions));
-app.set("trust proxy", 1);
-
-// Session configuration
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    }),
-  })
-);
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Move these after passport middleware
 app.use(bodyParser.json());

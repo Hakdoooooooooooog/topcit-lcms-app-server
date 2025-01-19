@@ -282,15 +282,13 @@ export const editQuiz = async (
 export const getQuizUserAttempt = async (
   studentId: number,
   quizId: number
-): Promise<user_quiz_attempts> => {
+): Promise<user_quiz_attempts[]> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const result = await prisma.user_quiz_attempts.findFirst({
+      const result = await prisma.user_quiz_attempts.findMany({
         where: {
+          student_id: studentId,
           quiz_id: quizId,
-          AND: {
-            student_id: studentId,
-          },
         },
       });
 
@@ -318,6 +316,7 @@ export const initialQuizAttempt = async (
           quiz_id: quizId,
           student_id: studentId,
           start_time: startedAt,
+          attempt_count: 1,
         },
       });
 
@@ -537,20 +536,43 @@ export const submitQuizAttempt = async (
           }
 
           // Update user quiz attempt score and time taken
-          const userScore = await tx.user_quiz_attempts.update({
-            where: {
-              id: userQuizAttempt.id,
-            },
+          // const userScore = await tx.user_quiz_attempts.update({
+          //   where: {
+          //     id: userQuizAttempt.id,
+          //   },
+          //   data: {
+          //     score: userCorrectAnswers.filter((answer) => answer.is_correct)
+          //       .length,
+          //     completed_at: new Date(),
+          //     timeTaken: new Date(
+          //       new Date().getTime() - userQuizAttempt.start_time.getTime()
+          //     ),
+          //     attempt_count: {
+          //       increment: 1,
+          //     },
+          //   },
+          // });
+
+          // if (!userScore) {
+          //   throw new Error("Failed to submit quiz attempt");
+          // }
+
+          const userScore = await tx.user_quiz_attempts.create({
             data: {
+              quiz_id: quizId,
+              student_id: studentId,
               score: userCorrectAnswers.filter((answer) => answer.is_correct)
                 .length,
               completed_at: new Date(),
               timeTaken: new Date(
                 new Date().getTime() - userQuizAttempt.start_time.getTime()
               ),
-              attempt_count: {
-                increment: 1,
-              },
+              attempt_count: await tx.user_quiz_attempts.count({
+                where: {
+                  student_id: studentId,
+                  quiz_id: quizId,
+                },
+              }),
             },
           });
 
