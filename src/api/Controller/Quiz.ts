@@ -82,18 +82,22 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
   }
 
   try {
-    // Changing the correct answer based on the option index
+    // Changing the correct answer based on the option index if the question type is multiple choice, Otherwise return the other question types as it is
     const quizQuestionCorrectAnswer = (
       quizQuestions as z.infer<typeof QuizSchemaStage2>["quizQuestions"]
     ).map((question) => {
-      const correctAnswerIndex = Number(question.correctAnswer);
-      const correctAnswer =
-        question.multipleChoiceOptions[correctAnswerIndex - 1].optionText;
+      if (question.questionType === "Multiple Choice") {
+        const correctAnswerIndex = Number(question.correctAnswer);
+        const correctAnswer =
+          question.multipleChoiceOptions[correctAnswerIndex - 1].optionText;
 
-      return {
-        ...question,
-        correctAnswer,
-      };
+        return {
+          ...question,
+          correctAnswer,
+        };
+      }
+
+      return question;
     });
 
     // Edit quiz
@@ -107,7 +111,8 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
       objectiveQuestions: quizQuestionCorrectAnswer,
     };
 
-    await editQuiz(quizDetails);
+    console.log("Update Quiz: ", quizDetails);
+    // await editQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz updated" });
   } catch (error: any) {
@@ -136,18 +141,22 @@ export const CreateQuiz = async (req: Request, res: Response) => {
     return;
   }
 
-  // Changing the correct answer based on the option index
+  // Changing the correct answer based on the option index if the question type is multiple choice, Otherwise return the other question types as it is
   const quizQuestionCorrectAnswer = (
     quizQuestions as z.infer<typeof QuizSchemaStage2>["quizQuestions"]
   ).map((question) => {
-    const correctAnswerIndex = Number(question.correctAnswer);
-    const correctAnswer =
-      question.multipleChoiceOptions[correctAnswerIndex - 1].optionText;
+    if (question.questionType === "Multiple Choice") {
+      const correctAnswerIndex = Number(question.correctAnswer);
+      const correctAnswer =
+        question.multipleChoiceOptions[correctAnswerIndex - 1].optionText;
 
-    return {
-      ...question,
-      correctAnswer,
-    };
+      return {
+        ...question,
+        correctAnswer,
+      };
+    }
+
+    return question;
   });
 
   // Get Quiz id from the first question
@@ -166,7 +175,9 @@ export const CreateQuiz = async (req: Request, res: Response) => {
 
   try {
     // Insert quiz
-    await createQuiz(quizDetails);
+
+    console.log("Create Quiz: ", quizDetails);
+    // await createQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz created/updated" });
   } catch (error: any) {
@@ -194,10 +205,12 @@ export const StartQuiz = async (req: Request, res: Response) => {
       parseInt(quizId as string)
     );
 
+    const lastAttempt = userAttempt[userAttempt.length - 1];
+
     const result = await updateExistingInitialQuizAttempt(
-      Number(userAttempt.id),
-      Number(userAttempt.quiz_id),
-      Number(userAttempt.student_id),
+      Number(lastAttempt.id),
+      Number(lastAttempt.quiz_id),
+      Number(lastAttempt.student_id),
       new Date()
     );
 
