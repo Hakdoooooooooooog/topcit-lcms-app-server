@@ -1,19 +1,15 @@
+import { prisma, quiz, user_quiz_attempts } from "../services/prisma";
 import {
-  prisma,
-  objective_questions,
-  quiz,
-  user_quiz_attempts,
-  topics,
-} from "../services/prisma";
-import {
+  QuizAssessmentScores,
   QuizDetails,
   QuizzesAssessment,
-  TopicWithQuizAndObjectiveQuestion,
+  TopicQuizAssessments,
+  TopicWithQuiz,
 } from "../types/quiz";
 
-export const getTopicWithQuizAndObjectiveQuestion = async (
+export const getTopicWithQuiz = async (
   studentId: number
-): Promise<TopicWithQuizAndObjectiveQuestion[]> => {
+): Promise<TopicWithQuiz[]> => {
   return new Promise(async (resolve, reject) => {
     try {
       const chapterResult = await prisma.topics.findMany({
@@ -32,42 +28,116 @@ export const getTopicWithQuizAndObjectiveQuestion = async (
               quiz_type: true,
               max_attempts: true,
               created_at: true,
+              chapter_id: true,
+              _count: {
+                select: {
+                  user_quiz_attempts: {
+                    where: {
+                      student_id: studentId,
+                    },
+                  },
+                  objective_questions: true,
+                },
+              },
               user_quiz_attempts: {
                 where: {
                   student_id: studentId,
                 },
                 select: {
-                  id: true,
                   quiz_id: true,
-                  student_id: true,
-                  start_time: true,
-                  completed_at: true,
+                  score: true,
+                },
+                take: 1,
+                orderBy: {
+                  attempt_count: "desc",
+                },
+              },
+            },
+          },
+        },
+      });
+
+      resolve(chapterResult);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
+    }
+  });
+};
+
+export const getTopicQuizAssessments = async ({
+  quizID,
+}: {
+  quizID: number;
+}): Promise<TopicQuizAssessments[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const assessmentQuestions = await prisma.quiz.findMany({
+        where: {
+          id: quizID,
+        },
+        select: {
+          objective_questions: {
+            select: {
+              id: true,
+              quiz_id: true,
+              question: true,
+              question_type: true,
+              correct_answer: true,
+              multiple_choice_options: {
+                select: {
+                  option_text: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      resolve(assessmentQuestions);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
+    }
+  });
+};
+
+export const getQuizAssessmentScores = async (
+  studentId: number
+): Promise<QuizAssessmentScores[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const chapterResult = await prisma.topics.findMany({
+        select: {
+          id: true,
+          topictitle: true,
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              max_attempts: true,
+              _count: {
+                select: {
+                  objective_questions: true,
+                },
+              },
+              user_quiz_attempts: {
+                where: {
+                  student_id: studentId,
+                },
+                select: {
+                  quiz_id: true,
                   score: true,
                   timeTaken: true,
                   attempt_count: true,
                 },
               },
-              objective_questions: {
-                orderBy: {
-                  id: "asc",
-                },
-                select: {
-                  id: true,
-                  quiz_id: true,
-                  question: true,
-                  question_type: true,
-                  multiple_choice_options: {
-                    orderBy: {
-                      id: "asc",
-                    },
-                    select: {
-                      option_text: true,
-                    },
-                  },
-                },
-              },
+            },
+            orderBy: {
+              id: "asc",
             },
           },
+        },
+        orderBy: {
+          id: "asc",
         },
       });
 
@@ -98,6 +168,7 @@ export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
                 quiz_type: true,
                 max_attempts: true,
                 created_at: true,
+                chapter_id: true,
                 objective_questions: {
                   orderBy: {
                     id: "asc",
@@ -158,6 +229,7 @@ export const createQuiz = async (
         const createdQuiz = await tx.quiz.create({
           data: {
             topic_id: quizDetails.topics.topicId,
+            chapter_id: quizDetails.chapterId ?? 0,
             title: quizDetails.title,
             quiz_type: quizDetails.quizType ?? "objective",
             max_attempts: quizDetails.maxAttempts,
@@ -535,28 +607,6 @@ export const submitQuizAttempt = async (
             throw new Error("Quiz attempt not started");
           }
 
-          // Update user quiz attempt score and time taken
-          // const userScore = await tx.user_quiz_attempts.update({
-          //   where: {
-          //     id: userQuizAttempt.id,
-          //   },
-          //   data: {
-          //     score: userCorrectAnswers.filter((answer) => answer.is_correct)
-          //       .length,
-          //     completed_at: new Date(),
-          //     timeTaken: new Date(
-          //       new Date().getTime() - userQuizAttempt.start_time.getTime()
-          //     ),
-          //     attempt_count: {
-          //       increment: 1,
-          //     },
-          //   },
-          // });
-
-          // if (!userScore) {
-          //   throw new Error("Failed to submit quiz attempt");
-          // }
-
           const userScore = await tx.user_quiz_attempts.create({
             data: {
               quiz_id: quizId,
@@ -567,12 +617,13 @@ export const submitQuizAttempt = async (
               timeTaken: new Date(
                 new Date().getTime() - userQuizAttempt.start_time.getTime()
               ),
-              attempt_count: await tx.user_quiz_attempts.count({
-                where: {
-                  student_id: studentId,
-                  quiz_id: quizId,
-                },
-              }),
+              attempt_count:
+                (await tx.user_quiz_attempts.count({
+                  where: {
+                    student_id: studentId,
+                    quiz_id: quizId,
+                  },
+                })) + 1,
             },
           });
 
