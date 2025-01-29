@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { serializeBigInt } from "../services";
 import {
-  getTopicWithQuizAndObjectiveQuestion,
+  getTopicWithQuiz,
   getQuizUserAttempt,
   initialQuizAttempt,
   submitQuizAttempt,
@@ -9,6 +9,8 @@ import {
   createQuiz,
   getQuizAssessments,
   editQuiz,
+  getQuizAssessmentScores,
+  getTopicQuizAssessments,
 } from "../db/Quiz";
 import { QuizDetails } from "../types/quiz";
 import { z } from "zod";
@@ -28,11 +30,56 @@ export const TopicWithQuiz = async (req: Request, res: Response) => {
   }
 
   try {
-    const chapter = await getTopicWithQuizAndObjectiveQuestion(
+    const chapter = await getTopicWithQuiz(parseInt(studentId as string));
+
+    res.status(200).json(serializeBigInt(chapter));
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const QuizAssessment = async (req: Request, res: Response) => {
+  const { quizID } = req.params;
+  const { studentId, isAuth } = req.query;
+
+  if (!quizID) {
+    res.status(400).json({ message: "Invalid request" });
+    return;
+  }
+
+  if (!studentId || !isAuth) {
+    res.status(400).json({ message: "Invalid request" });
+    return;
+  }
+
+  if (isAuth !== "true") {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const chapter = await getTopicQuizAssessments({ quizID: Number(quizID) });
+
+    res.status(200).json(serializeBigInt(chapter));
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const AssessmentScore = async (req: Request, res: Response) => {
+  const { studentId, isAuth } = req.query;
+
+  if (!studentId || !isAuth) {
+    res.status(400).json({ message: "Invalid request" });
+    return;
+  }
+
+  try {
+    const quizScores = await getQuizAssessmentScores(
       parseInt(studentId as string)
     );
 
-    res.status(200).json(serializeBigInt(chapter));
+    res.status(200).json(serializeBigInt(quizScores));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -52,31 +99,38 @@ export const TopicQuizAssessments = async (req: Request, res: Response) => {
   }
 
   try {
-    const chapter = await getQuizAssessments();
+    const chapterQuizzes = await getQuizAssessments();
 
-    res.status(200).json(serializeBigInt(chapter));
+    res.status(200).json(serializeBigInt(chapterQuizzes));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
 
 export const UpdateQuiz = async (req: Request, res: Response) => {
-  const { topicId, quizTitle, maxAttempts, quizQuestions } = req.body;
+  const {
+    topicId,
+    quizId,
+    chapterSelect,
+    quizTitle,
+    maxAttempts,
+    quizQuestions,
+  } = req.body;
   const { isAuth, studentId } = req.query;
 
   if (
-    !topicId ||
-    !quizTitle ||
-    !quizQuestions ||
-    !isAuth ||
-    !studentId ||
+    !topicId &&
+    !quizId &&
+    !chapterSelect &&
+    !quizTitle &&
+    !quizQuestions &&
     !maxAttempts
   ) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
 
-  if (isAuth !== "true") {
+  if (isAuth !== "true" || !studentId) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
@@ -105,14 +159,13 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
       topics: {
         topicId: parseInt(topicId),
       },
+      chapterSelect,
       quizId: parseInt(quizQuestionCorrectAnswer[0].quizId),
       title: quizTitle,
       maxAttempts: parseInt(maxAttempts),
       objectiveQuestions: quizQuestionCorrectAnswer,
     };
-
-    console.log("Update Quiz: ", quizDetails);
-    // await editQuiz(quizDetails);
+    await editQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz updated" });
   } catch (error: any) {
@@ -121,11 +174,20 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
 };
 
 export const CreateQuiz = async (req: Request, res: Response) => {
-  const { topicId, quizTitle, maxAttempts, quizQuestions } = req.body;
+  const {
+    topicId,
+    quizId,
+    chapterSelect,
+    quizTitle,
+    maxAttempts,
+    quizQuestions,
+  } = req.body;
   const { isAuth, studentId } = req.query;
 
   if (
     !topicId ||
+    !quizId ||
+    !chapterSelect ||
     !quizTitle ||
     !quizQuestions ||
     !isAuth ||
@@ -159,14 +221,11 @@ export const CreateQuiz = async (req: Request, res: Response) => {
     return question;
   });
 
-  // Get Quiz id from the first question
-
-  const quizId = quizQuestionCorrectAnswer[0].quizId;
-
   const quizDetails: QuizDetails = {
     topics: {
       topicId: parseInt(topicId),
     },
+    chapterId: parseInt(chapterSelect),
     quizId: parseInt(quizId),
     title: quizTitle,
     maxAttempts: parseInt(maxAttempts),
@@ -175,9 +234,7 @@ export const CreateQuiz = async (req: Request, res: Response) => {
 
   try {
     // Insert quiz
-
-    console.log("Create Quiz: ", quizDetails);
-    // await createQuiz(quizDetails);
+    await createQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz created/updated" });
   } catch (error: any) {
@@ -224,7 +281,7 @@ export const StartQuiz = async (req: Request, res: Response) => {
           new Date()
         );
 
-        res.status(200).json({ message: "Quiz attempt started" });
+        res.status(200).json({ message: "Quiz attempt started." });
       } catch (error: any) {
         res.status(500).json({ message: error.message });
       }
@@ -233,8 +290,9 @@ export const StartQuiz = async (req: Request, res: Response) => {
 };
 
 export const SubmitQuiz = async (req: Request, res: Response) => {
-  const { topicId, studentId, quizId, isAuth } = req.query;
-  const assessmentData: { [quizID: string]: string } = req.body;
+  const { topicId, quizId } = req.params;
+  const { studentId, isAuth } = req.query;
+  const assessmentData: { [questionId: string]: string } = req.body;
 
   if (!topicId || !studentId || !quizId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });

@@ -20,6 +20,7 @@ model chapters {
   SubChapters           chapters[]                @relation("chaptersTochapters")
   topics                topics                    @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "chapters_ibfk_1")
   FileChapter           files?
+  quiz                  quiz?
   UserCompletedChapters user_completed_chapters[]
   user_progress         user_progress[]
 
@@ -53,6 +54,7 @@ model objective_questions {
   correct_answer               String?
   multiple_choice_options      multiple_choice_options[]
   quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "objective_questions_ibfk_1")
+  user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
 }
 
@@ -63,8 +65,10 @@ model quiz {
   quiz_type              String                   @default("objective")
   max_attempts           Int?                     @default(3)
   created_at             DateTime?                @default(now()) @db.Timestamp(6)
+  chapter_id             BigInt                   @unique
   objective_questions    objective_questions[]
-  topics                 topics                   @relation(fields: [topic_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "quiz_ibfk_1")
+  chapters               chapters                 @relation(fields: [chapter_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quiz_chapter_id")
+  topics                 topics                   @relation(fields: [topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_quiz_topic_id")
   user_completed_quizzes user_completed_quizzes[]
   user_progress          user_progress[]
   user_quiz_attempts     user_quiz_attempts[]
@@ -140,6 +144,7 @@ model user_quiz_attempts {
   completed_at                 DateTime?                      @db.Timestamp(6)
   start_time                   DateTime?                      @db.Timestamp(6)
   timeTaken                    DateTime?                      @db.Time(6)
+  user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
   quiz                         quiz                           @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_ibfk_2")
   users                        users                          @relation(fields: [student_id], references: [studentId], onDelete: Cascade, onUpdate: NoAction, map: "user_quiz_attempts_student_id_fkey")
@@ -169,6 +174,7 @@ model users {
   role                         String                         @default("user")
   user_completed_chapters      user_completed_chapters[]
   user_completed_quizzes       user_completed_quizzes[]
+  user_identification_answers  user_identification_answers[]
   user_multiple_choice_answers user_multiple_choice_answers[]
   user_progress                user_progress?
   user_quiz_attempts           user_quiz_attempts[]
@@ -192,4 +198,17 @@ model user_otp {
   expires_at DateTime @db.Time(6)
   otp        String?
   email      String   @unique @db.VarChar(255)
+}
+
+model user_identification_answers {
+  id                  BigInt              @id @default(autoincrement())
+  attempt_id          BigInt
+  student_id          BigInt
+  user_answer         String?
+  attemptNumber       Int?                @db.SmallInt
+  is_correct          Boolean?            @default(false)
+  question_id         BigInt
+  user_quiz_attempts  user_quiz_attempts  @relation(fields: [attempt_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_identification_answers_attempt_id")
+  objective_questions objective_questions @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_identification_answers_question_id")
+  users               users               @relation(fields: [student_id], references: [studentId], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_identification_answers_student_id")
 }

@@ -1,19 +1,15 @@
+import { prisma, quiz, user_quiz_attempts } from "../services/prisma";
 import {
-  prisma,
-  objective_questions,
-  quiz,
-  user_quiz_attempts,
-  topics,
-} from "../services/prisma";
-import {
+  QuizAssessmentScores,
   QuizDetails,
   QuizzesAssessment,
-  TopicWithQuizAndObjectiveQuestion,
+  TopicQuizAssessments,
+  TopicWithQuiz,
 } from "../types/quiz";
 
-export const getTopicWithQuizAndObjectiveQuestion = async (
+export const getTopicWithQuiz = async (
   studentId: number
-): Promise<TopicWithQuizAndObjectiveQuestion[]> => {
+): Promise<TopicWithQuiz[]> => {
   return new Promise(async (resolve, reject) => {
     try {
       const chapterResult = await prisma.topics.findMany({
@@ -32,42 +28,121 @@ export const getTopicWithQuizAndObjectiveQuestion = async (
               quiz_type: true,
               max_attempts: true,
               created_at: true,
+              chapter_id: true,
+              _count: {
+                select: {
+                  user_quiz_attempts: {
+                    where: {
+                      student_id: studentId,
+                    },
+                  },
+                  objective_questions: true,
+                },
+              },
+              chapters: {
+                select: {
+                  title: true,
+                },
+              },
               user_quiz_attempts: {
                 where: {
                   student_id: studentId,
                 },
                 select: {
-                  id: true,
                   quiz_id: true,
-                  student_id: true,
-                  start_time: true,
-                  completed_at: true,
+                  score: true,
+                },
+                take: 1,
+                orderBy: {
+                  attempt_count: "desc",
+                },
+              },
+            },
+          },
+        },
+      });
+
+      resolve(chapterResult);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
+    }
+  });
+};
+
+export const getTopicQuizAssessments = async ({
+  quizID,
+}: {
+  quizID: number;
+}): Promise<TopicQuizAssessments[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const assessmentQuestions = await prisma.quiz.findMany({
+        where: {
+          id: quizID,
+        },
+        select: {
+          objective_questions: {
+            select: {
+              id: true,
+              quiz_id: true,
+              question: true,
+              question_type: true,
+              correct_answer: true,
+              multiple_choice_options: {
+                select: {
+                  option_text: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      resolve(assessmentQuestions);
+    } catch (error: any) {
+      reject(new Error("Failed to get chapter: " + error.message));
+    }
+  });
+};
+
+export const getQuizAssessmentScores = async (
+  studentId: number
+): Promise<QuizAssessmentScores[]> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const chapterResult = await prisma.topics.findMany({
+        select: {
+          id: true,
+          topictitle: true,
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              max_attempts: true,
+              _count: {
+                select: {
+                  objective_questions: true,
+                },
+              },
+              user_quiz_attempts: {
+                where: {
+                  student_id: studentId,
+                },
+                select: {
+                  quiz_id: true,
                   score: true,
                   timeTaken: true,
                   attempt_count: true,
                 },
               },
-              objective_questions: {
-                orderBy: {
-                  id: "asc",
-                },
-                select: {
-                  id: true,
-                  quiz_id: true,
-                  question: true,
-                  question_type: true,
-                  multiple_choice_options: {
-                    orderBy: {
-                      id: "asc",
-                    },
-                    select: {
-                      option_text: true,
-                    },
-                  },
-                },
-              },
+            },
+            orderBy: {
+              id: "asc",
             },
           },
+        },
+        orderBy: {
+          id: "asc",
         },
       });
 
@@ -87,6 +162,16 @@ export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
             id: "asc",
           },
           include: {
+            chapters: {
+              orderBy: {
+                id: "asc",
+              },
+              select: {
+                id: true,
+                topic_id: true,
+                title: true,
+              },
+            },
             quiz: {
               orderBy: {
                 id: "asc",
@@ -98,6 +183,7 @@ export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
                 quiz_type: true,
                 max_attempts: true,
                 created_at: true,
+                chapter_id: true,
                 objective_questions: {
                   orderBy: {
                     id: "asc",
@@ -155,60 +241,92 @@ export const createQuiz = async (
   return new Promise(async (resolve, reject) => {
     try {
       const createQuiz = await prisma.$transaction(async (tx) => {
-        const createdQuiz = await tx.quiz.create({
-          data: {
-            topic_id: quizDetails.topics.topicId,
-            title: quizDetails.title,
-            quiz_type: quizDetails.quizType ?? "objective",
-            max_attempts: quizDetails.maxAttempts,
-            created_at: new Date(),
-          },
-          select: {
-            id: true,
-          },
-        });
+        const questionTypes = quizDetails.objectiveQuestions.map(
+          (question) => question.questionType
+        );
 
-        await tx.objective_questions.createMany({
-          data: quizDetails.objectiveQuestions.map((question) => {
-            return {
-              quiz_id: createdQuiz.id,
-              question: question.question,
-              question_type: question.questionType,
-              correct_answer: question.correctAnswer,
-            };
-          }),
-        });
+        if (questionTypes.includes("Multiple Choice")) {
+          const createdQuiz = await tx.quiz.create({
+            data: {
+              topic_id: quizDetails.topics.topicId,
+              chapter_id: quizDetails.chapterId ?? 0,
+              title: quizDetails.title,
+              quiz_type: quizDetails.quizType ?? "objective",
+              max_attempts: quizDetails.maxAttempts,
+              created_at: new Date(),
+            },
+            select: {
+              id: true,
+            },
+          });
 
-        const objectiveQuestions = await tx.objective_questions.findMany({
-          where: {
-            quiz_id: createdQuiz.id,
-          },
-          select: {
-            id: true,
-            question: true,
-          },
-        });
-
-        await tx.multiple_choice_options.createMany({
-          data: quizDetails.objectiveQuestions.flatMap((question) => {
-            const objectiveQuestion = objectiveQuestions.find(
-              (oq) => oq.question === question.question
-            );
-
-            if (!objectiveQuestion) {
-              throw new Error(
-                `Objective question not found for question: ${question.question}`
-              );
-            }
-
-            return question.multipleChoiceOptions.map((option) => {
+          await tx.objective_questions.createMany({
+            data: quizDetails.objectiveQuestions.map((question) => {
               return {
-                objective_question_id: objectiveQuestion.id,
-                option_text: option.optionText,
+                quiz_id: createdQuiz.id,
+                question: question.question,
+                question_type: question.questionType,
+                correct_answer: question.correctAnswer,
               };
-            });
-          }),
-        });
+            }),
+          });
+
+          const objectiveQuestions = await tx.objective_questions.findMany({
+            where: {
+              quiz_id: createdQuiz.id,
+            },
+            select: {
+              id: true,
+              question: true,
+            },
+          });
+
+          await tx.multiple_choice_options.createMany({
+            data: quizDetails.objectiveQuestions.flatMap((question) => {
+              const objectiveQuestion = objectiveQuestions.find(
+                (oq) => oq.question === question.question
+              );
+
+              if (!objectiveQuestion) {
+                throw new Error(
+                  `Objective question not found for question: ${question.question}`
+                );
+              }
+
+              return question.multipleChoiceOptions.map((option) => {
+                return {
+                  objective_question_id: objectiveQuestion.id,
+                  option_text: option.optionText,
+                };
+              });
+            }),
+          });
+        } else {
+          const createdQuiz = await tx.quiz.create({
+            data: {
+              topic_id: quizDetails.topics.topicId,
+              chapter_id: quizDetails.chapterId ?? 0,
+              title: quizDetails.title,
+              quiz_type: quizDetails.quizType ?? "objective",
+              max_attempts: quizDetails.maxAttempts,
+              created_at: new Date(),
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          await tx.objective_questions.createMany({
+            data: quizDetails.objectiveQuestions.map((question) => {
+              return {
+                quiz_id: createdQuiz.id,
+                question: question.question,
+                question_type: question.questionType,
+                correct_answer: question.correctAnswer,
+              };
+            }),
+          });
+        }
 
         return { message: "Quiz created/updated successfully." };
       });
@@ -226,50 +344,142 @@ export const editQuiz = async (
 ): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const editQuiz = await prisma.$transaction(async (tx) => {
-        await tx.quiz.update({
-          where: {
-            id: quizDetails.quizId,
-          },
-          data: {
-            title: quizDetails.title,
-            quiz_type: quizDetails.quizType ?? "objective",
-            max_attempts: quizDetails.maxAttempts,
-            objective_questions: {
-              updateMany: quizDetails.objectiveQuestions.map((question) => {
-                return {
+      const editQuiz = await prisma.$transaction(
+        async (tx) => {
+          const chapterId = await tx.chapters.findFirst({
+            where: {
+              title: quizDetails.chapterSelect,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          for (const question of quizDetails.objectiveQuestions) {
+            if (question.questionType === "Multiple Choice") {
+              question.multipleChoiceOptions.forEach((option) => {
+                if (!option.optionText) {
+                  throw new Error("Option text is required");
+                }
+              });
+
+              await tx.quiz.update({
+                where: {
+                  id: quizDetails.quizId,
+                  AND: {
+                    topic_id: quizDetails.topics.topicId,
+                    chapter_id: chapterId?.id ?? 0,
+                  },
+                },
+                data: {
+                  title: quizDetails.title,
+                  quiz_type: quizDetails.quizType ?? "objective",
+                  max_attempts: quizDetails.maxAttempts,
+                  objective_questions: {
+                    updateMany: quizDetails.objectiveQuestions.map(
+                      (question) => {
+                        return {
+                          where: {
+                            quiz_id: quizDetails.quizId,
+                            question: question.question,
+                          },
+                          data: {
+                            question_type: question.questionType,
+                            correct_answer: question.correctAnswer,
+                          },
+                        };
+                      }
+                    ),
+                  },
+                },
+              });
+
+              for (const question of quizDetails.objectiveQuestions) {
+                const objectiveQuestion =
+                  await tx.objective_questions.findFirst({
+                    where: {
+                      quiz_id: quizDetails.quizId,
+                      question: question.question,
+                    },
+                  });
+
+                if (objectiveQuestion) {
+                  if (question.multipleChoiceOptions) {
+                    for (const option of question.multipleChoiceOptions) {
+                      await tx.multiple_choice_options.create({
+                        data: {
+                          objective_question_id: objectiveQuestion.id,
+                          option_text: option.optionText,
+                        },
+                      });
+                    }
+                  }
+                }
+              }
+            } else {
+              // delete multiple choice options if question type is not multiple choice
+
+              const objectiveQuestionId =
+                await tx.objective_questions.findFirst({
                   where: {
                     quiz_id: quizDetails.quizId,
                     question: question.question,
                   },
-                  data: {
-                    question_type: question.questionType,
-                    correct_answer: question.correctAnswer,
+                  select: {
+                    id: true,
                   },
-                };
-              }),
-            },
-          },
-        });
+                });
 
-        await tx.multiple_choice_options.updateMany({
-          where: {
-            objective_question_id: {
-              in: quizDetails.objectiveQuestions.map((_question) =>
-                BigInt(quizDetails.quizId ?? 0)
-              ),
-            },
-          },
-          data: {
-            option_text: quizDetails.objectiveQuestions
-              .flatMap((question) => question.multipleChoiceOptions)
-              .map((option) => option.optionText)
-              .join(", "),
-          },
-        });
+              if (!objectiveQuestionId) {
+                throw new Error("Objective question not found");
+              }
 
-        return { message: "Quiz updated successfully." };
-      });
+              await tx.multiple_choice_options.deleteMany({
+                where: {
+                  objective_question_id: objectiveQuestionId.id,
+                },
+              });
+
+              await tx.quiz.update({
+                where: {
+                  id: quizDetails.quizId,
+                  AND: {
+                    topic_id: quizDetails.topics.topicId,
+                    chapter_id: chapterId?.id ?? 0,
+                  },
+                },
+                data: {
+                  title: quizDetails.title,
+                  quiz_type: quizDetails.quizType ?? "objective",
+                  max_attempts: quizDetails.maxAttempts,
+                  objective_questions: {
+                    updateMany: quizDetails.objectiveQuestions.map(
+                      (question) => {
+                        return {
+                          where: {
+                            quiz_id: quizDetails.quizId,
+                            question: question.question,
+                          },
+                          data: {
+                            question_type: question.questionType,
+                            correct_answer: question.correctAnswer,
+                          },
+                        };
+                      }
+                    ),
+                  },
+                },
+              });
+            }
+          }
+
+          return { message: "Quiz updated successfully." };
+        },
+        {
+          timeout: 15000,
+          maxWait: 5000,
+        }
+      );
 
       resolve(editQuiz);
     } catch (error: any) {
@@ -292,7 +502,7 @@ export const getQuizUserAttempt = async (
         },
       });
 
-      if (result) {
+      if (result && result.length > 0) {
         resolve(result);
       } else {
         reject(new Error("Quiz attempt not found"));
@@ -381,247 +591,188 @@ export const submitQuizAttempt = async (
             throw new Error("Quiz attempt not found");
           }
 
-          const getMultipleChoiceId = await tx.multiple_choice_options.findMany(
-            {
-              where: {
-                objective_question_id: {
-                  in: quizUserObjectiveAnswers.map(
-                    (answer) => answer.question_id
-                  ),
-                },
-                AND: {
-                  option_text: {
-                    in: quizUserObjectiveAnswers.map(
-                      (answer) => answer.user_answer
-                    ),
-                  },
-                },
-              },
-              select: {
-                id: true,
-                objective_question_id: true,
-                option_text: true,
-              },
-            }
-          );
-
-          if (!getMultipleChoiceId) {
-            throw new Error("Multiple choice options not found");
-          }
-
-          const createUserMultipleChoiceAnswers =
-            await tx.user_multiple_choice_answers.createMany({
-              data: quizUserObjectiveAnswers.map((answer) => {
-                return {
-                  attempt_id: userQuizAttempt.id,
-                  student_id: studentId,
-                  question_id: answer.question_id,
-                  user_selected_option_id: getMultipleChoiceId.find(
-                    (option) =>
-                      option.option_text === answer.user_answer &&
-                      Number(option.objective_question_id) ===
-                        answer.question_id
-                  )?.id,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                };
-              }),
-            });
-
-          if (!createUserMultipleChoiceAnswers) {
-            throw new Error("Failed to update user multiple choice answers");
-          }
-
-          const getUserMultipleChoiceAnswer =
-            await tx.user_multiple_choice_answers.findMany({
-              where: {
-                attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                },
-              },
-
-              select: {
-                user_selected_option_id: true,
-              },
-            });
-
-          if (!getUserMultipleChoiceAnswer) {
-            throw new Error("User multiple choice answers not found");
-          }
-
-          const getMultipleChoiceCorrectAnswer =
-            await tx.objective_questions.findMany({
-              where: {
-                quiz_id: quizId,
-                question_type: "multiple_choice",
-              },
-              select: {
-                id: true,
-                correct_answer: true,
-              },
-            });
-
-          if (!getMultipleChoiceCorrectAnswer) {
-            throw new Error("Multiple choice correct answers not found");
-          }
-
-          const getUserAnswer = await tx.multiple_choice_options.findMany({
+          // Get question types for all questions
+          const questionTypes = await tx.objective_questions.findMany({
             where: {
               id: {
-                in: getUserMultipleChoiceAnswer
-                  .filter((answer) => answer.user_selected_option_id !== null)
-                  .map((answer) => answer.user_selected_option_id as bigint),
+                in: quizUserObjectiveAnswers.map(
+                  (answer) => answer.question_id
+                ),
               },
             },
             select: {
               id: true,
-              option_text: true,
+              question_type: true,
             },
           });
 
-          if (!getUserAnswer) {
-            throw new Error("User answers not found");
-          }
+          // Filter multiple choice questions
+          const multipleChoiceQuestions = quizUserObjectiveAnswers.filter(
+            (answer) =>
+              questionTypes.find((q) => Number(q.id) === answer.question_id)
+                ?.question_type === "Multiple Choice"
+          );
 
-          // Update User multiple choice answers if correct
-          const updateUserMultipleChoiceAnswers =
+          // Filter identification questions
+          const identificationQuestions = quizUserObjectiveAnswers.filter(
+            (answer) =>
+              questionTypes.find((q) => Number(q.id) === answer.question_id)
+                ?.question_type === "Identification"
+          );
+
+          // Process multiple choice questions
+          if (multipleChoiceQuestions.length > 0) {
+            const getMultipleChoiceId =
+              await tx.multiple_choice_options.findMany({
+                where: {
+                  objective_question_id: {
+                    in: multipleChoiceQuestions.map(
+                      (answer) => answer.question_id
+                    ),
+                  },
+                  AND: {
+                    option_text: {
+                      in: multipleChoiceQuestions.map(
+                        (answer) => answer.user_answer
+                      ),
+                    },
+                  },
+                },
+                select: {
+                  id: true,
+                  objective_question_id: true,
+                  option_text: true,
+                },
+              });
+
+            // Create user multiple choice answers
+            await tx.user_multiple_choice_answers.createMany({
+              data: multipleChoiceQuestions.map((answer) => ({
+                attempt_id: userQuizAttempt.id,
+                student_id: studentId,
+                question_id: answer.question_id,
+                user_selected_option_id: getMultipleChoiceId.find(
+                  (option) =>
+                    option.option_text === answer.user_answer &&
+                    Number(option.objective_question_id) === answer.question_id
+                )?.id,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+              })),
+            });
+
+            // update user multiple choice answers if it is correct
             await tx.user_multiple_choice_answers.updateMany({
               where: {
                 attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  multiple_choice_options: {
-                    objective_questions: {
-                      quiz_id: quizId,
-                      correct_answer: {
-                        in: getUserAnswer.map((answer) => answer.option_text),
-                      },
-                    },
+                student_id: studentId,
+                question_id: {
+                  in: multipleChoiceQuestions.map(
+                    (answer) => answer.question_id
+                  ),
+                },
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+                objective_questions: {
+                  correct_answer: {
+                    in: multipleChoiceQuestions.map(
+                      (answer) => answer.user_answer
+                    ),
                   },
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
                 },
               },
               data: {
                 is_correct: true,
               },
             });
-
-          if (!updateUserMultipleChoiceAnswers) {
-            throw new Error("Failed to update user multiple choice answers");
           }
 
-          // Get user correct answers
-          const userCorrectAnswers =
+          // Process identification questions
+          if (identificationQuestions.length > 0) {
+            // Get correct answers for identification questions
+            const identificationAnswers = await tx.objective_questions.findMany(
+              {
+                where: {
+                  id: {
+                    in: identificationQuestions.map((q) => q.question_id),
+                  },
+                },
+                select: {
+                  id: true,
+                  correct_answer: true,
+                },
+              }
+            );
+
+            // Create user identification answers
+            await tx.user_identification_answers.createMany({
+              data: identificationQuestions.map((answer) => ({
+                attempt_id: userQuizAttempt.id,
+                student_id: studentId,
+                question_id: answer.question_id,
+                user_answer: answer.user_answer,
+                is_correct:
+                  identificationAnswers
+                    .find((q) => Number(q.id) === answer.question_id)
+                    ?.correct_answer?.toLowerCase() ===
+                  answer.user_answer.toLowerCase(),
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+              })),
+            });
+          }
+
+          // Calculate total score
+          const userMultipleChoiceAnswers =
             await tx.user_multiple_choice_answers.findMany({
               where: {
                 attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                },
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
-
               select: {
                 is_correct: true,
               },
             });
 
-          if (!userCorrectAnswers) {
-            throw new Error("User correct answers not found");
-          }
-
-          if (!userQuizAttempt.start_time) {
-            throw new Error("Quiz attempt not started");
-          }
-
-          // Update user quiz attempt score and time taken
-          // const userScore = await tx.user_quiz_attempts.update({
-          //   where: {
-          //     id: userQuizAttempt.id,
-          //   },
-          //   data: {
-          //     score: userCorrectAnswers.filter((answer) => answer.is_correct)
-          //       .length,
-          //     completed_at: new Date(),
-          //     timeTaken: new Date(
-          //       new Date().getTime() - userQuizAttempt.start_time.getTime()
-          //     ),
-          //     attempt_count: {
-          //       increment: 1,
-          //     },
-          //   },
-          // });
-
-          // if (!userScore) {
-          //   throw new Error("Failed to submit quiz attempt");
-          // }
-
-          const userScore = await tx.user_quiz_attempts.create({
-            data: {
-              quiz_id: quizId,
-              student_id: studentId,
-              score: userCorrectAnswers.filter((answer) => answer.is_correct)
-                .length,
-              completed_at: new Date(),
-              timeTaken: new Date(
-                new Date().getTime() - userQuizAttempt.start_time.getTime()
-              ),
-              attempt_count: await tx.user_quiz_attempts.count({
-                where: {
-                  student_id: studentId,
-                  quiz_id: quizId,
-                },
-              }),
-            },
-          });
-
-          if (!userScore) {
-            throw new Error("Failed to submit quiz attempt");
-          }
-
-          const userExistingCompletedQuizzes =
-            await tx.user_completed_quizzes.findFirst({
+          const userIdentificationAnswers =
+            await tx.user_identification_answers.findMany({
               where: {
-                student_id: userQuizAttempt.student_id,
-                quiz_id: userQuizAttempt.quiz_id,
+                attempt_id: userQuizAttempt.id,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
               select: {
-                id: true,
+                is_correct: true,
               },
             });
 
-          // Update user completed quizzes and user progress
-          const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
+          const userAnswers = [
+            ...userMultipleChoiceAnswers,
+            ...userIdentificationAnswers,
+          ];
+
+          // Create user score record
+          await tx.user_quiz_attempts.upsert({
             where: {
-              id: userExistingCompletedQuizzes?.id ?? 0,
-            },
-            update: {
-              completed_at: new Date(),
+              id: userQuizAttempt.id,
             },
             create: {
-              topic_id:
-                (
-                  await tx.quiz.findUnique({
-                    where: {
-                      id: userQuizAttempt.quiz_id,
-                    },
-                    select: {
-                      topic_id: true,
-                    },
-                  })
-                )?.topic_id ?? 0, // Provide a default value or handle appropriately
-              student_id: userQuizAttempt.student_id,
-              quiz_id: userQuizAttempt.quiz_id,
+              quiz_id: quizId,
+              student_id: studentId,
+              score: userAnswers.filter((answer) => answer.is_correct).length,
               completed_at: new Date(),
+              timeTaken: userQuizAttempt.start_time
+                ? new Date(
+                    new Date().getTime() - userQuizAttempt.start_time.getTime()
+                  )
+                : null,
+              attempt_count: (userQuizAttempt.attempt_count ?? 0) + 1,
+            },
+            update: {
+              score: userAnswers.filter((answer) => answer.is_correct).length,
+              completed_at: new Date(),
+              attempt_count: (userQuizAttempt.attempt_count ?? 0) + 1,
             },
           });
 
-          if (!userCompletedQuizzes) {
-            throw new Error("Failed to update user completed quizzes");
-          }
-
-          const userProgressSet = await tx.user_progress.upsert({
+          // Update user progress
+          await tx.user_progress.upsert({
             where: {
               student_id: studentId,
             },
@@ -633,23 +784,18 @@ export const submitQuizAttempt = async (
               curr_quiz_id: quizId,
             },
           });
-
-          if (!userProgressSet) {
-            throw new Error("Error setting user progress");
-          }
 
           return { message: "Quiz attempt submitted successfully" };
         },
         {
-          timeout: 15000, // 15 seconds
-          maxWait: 5000, // 5 seconds
+          timeout: 15000,
+          maxWait: 5000,
         }
       );
 
-      if (resultTransaction) {
-        resolve(resultTransaction);
-      }
+      resolve(resultTransaction);
     } catch (error: any) {
+      console.error(error);
       reject(new Error("Failed to submit quiz attempt: " + error.message));
     }
   });

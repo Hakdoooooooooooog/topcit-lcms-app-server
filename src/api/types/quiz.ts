@@ -6,16 +6,28 @@ import {
 } from "../services/prisma";
 
 interface QuizWithObjectiveQuestions extends quiz {
-  user_quiz_attempts: user_quiz_attempts[] | null;
+  _count: {
+    user_quiz_attempts: number;
+    objective_questions: number;
+  };
   objective_questions: Omit<objective_questions, "correct_answer">[];
 }
 
-export interface TopicWithQuizAndObjectiveQuestion extends topics {
-  quiz: QuizWithObjectiveQuestions[];
+export interface TopicWithQuiz extends topics {
+  quiz: quiz[];
+}
+
+export interface TopicQuizAssessments {
+  objective_questions: objective_questions[];
 }
 
 export interface QuizzesAssessment extends topics {
-  quiz: Omit<QuizWithObjectiveQuestions, "user_quiz_attempts">[];
+  chapters: {
+    id: bigint;
+    topic_id: bigint;
+    title: string;
+  }[];
+  quiz: Omit<QuizWithObjectiveQuestions, "_count">[];
 }
 
 export type QuizDetails = {
@@ -23,6 +35,8 @@ export type QuizDetails = {
     topicId: number;
   };
   quizId?: number;
+  chapterSelect?: string;
+  chapterId?: number;
   title: string;
   quizType?: string | null;
   maxAttempts: number;
@@ -36,3 +50,16 @@ export type QuizDetails = {
     }[];
   }[];
 };
+
+export interface QuizAssessmentScores
+  extends Pick<topics, "id" | "topictitle"> {
+  quiz: {
+    id: bigint;
+    title: string;
+    max_attempts: number | null;
+    user_quiz_attempts: Omit<
+      user_quiz_attempts,
+      "student_id" | "id" | "completed_at" | "start_time"
+    >[];
+  }[];
+}
