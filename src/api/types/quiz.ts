@@ -22,6 +22,11 @@ export interface TopicQuizAssessments {
 }
 
 export interface QuizzesAssessment extends topics {
+  chapters: {
+    id: bigint;
+    topic_id: bigint;
+    title: string;
+  }[];
   quiz: Omit<QuizWithObjectiveQuestions, "_count">[];
 }
 

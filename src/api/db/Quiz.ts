@@ -39,6 +39,11 @@ export const getTopicWithQuiz = async (
                   objective_questions: true,
                 },
               },
+              chapters: {
+                select: {
+                  title: true,
+                },
+              },
               user_quiz_attempts: {
                 where: {
                   student_id: studentId,
@@ -157,6 +162,16 @@ export const getQuizAssessments = async (): Promise<QuizzesAssessment[]> => {
             id: "asc",
           },
           include: {
+            chapters: {
+              orderBy: {
+                id: "asc",
+              },
+              select: {
+                id: true,
+                topic_id: true,
+                title: true,
+              },
+            },
             quiz: {
               orderBy: {
                 id: "asc",
@@ -364,7 +379,7 @@ export const getQuizUserAttempt = async (
         },
       });
 
-      if (result) {
+      if (result && result.length > 0) {
         resolve(result);
       } else {
         reject(new Error("Quiz attempt not found"));
@@ -453,226 +468,188 @@ export const submitQuizAttempt = async (
             throw new Error("Quiz attempt not found");
           }
 
-          const getMultipleChoiceId = await tx.multiple_choice_options.findMany(
-            {
-              where: {
-                objective_question_id: {
-                  in: quizUserObjectiveAnswers.map(
-                    (answer) => answer.question_id
-                  ),
-                },
-                AND: {
-                  option_text: {
-                    in: quizUserObjectiveAnswers.map(
-                      (answer) => answer.user_answer
-                    ),
-                  },
-                },
-              },
-              select: {
-                id: true,
-                objective_question_id: true,
-                option_text: true,
-              },
-            }
-          );
-
-          if (!getMultipleChoiceId) {
-            throw new Error("Multiple choice options not found");
-          }
-
-          const createUserMultipleChoiceAnswers =
-            await tx.user_multiple_choice_answers.createMany({
-              data: quizUserObjectiveAnswers.map((answer) => {
-                return {
-                  attempt_id: userQuizAttempt.id,
-                  student_id: studentId,
-                  question_id: answer.question_id,
-                  user_selected_option_id: getMultipleChoiceId.find(
-                    (option) =>
-                      option.option_text === answer.user_answer &&
-                      Number(option.objective_question_id) ===
-                        answer.question_id
-                  )?.id,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                };
-              }),
-            });
-
-          if (!createUserMultipleChoiceAnswers) {
-            throw new Error("Failed to update user multiple choice answers");
-          }
-
-          const getUserMultipleChoiceAnswer =
-            await tx.user_multiple_choice_answers.findMany({
-              where: {
-                attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                },
-              },
-
-              select: {
-                user_selected_option_id: true,
-              },
-            });
-
-          if (!getUserMultipleChoiceAnswer) {
-            throw new Error("User multiple choice answers not found");
-          }
-
-          const getMultipleChoiceCorrectAnswer =
-            await tx.objective_questions.findMany({
-              where: {
-                quiz_id: quizId,
-                question_type: "multiple_choice",
-              },
-              select: {
-                id: true,
-                correct_answer: true,
-              },
-            });
-
-          if (!getMultipleChoiceCorrectAnswer) {
-            throw new Error("Multiple choice correct answers not found");
-          }
-
-          const getUserAnswer = await tx.multiple_choice_options.findMany({
+          // Get question types for all questions
+          const questionTypes = await tx.objective_questions.findMany({
             where: {
               id: {
-                in: getUserMultipleChoiceAnswer
-                  .filter((answer) => answer.user_selected_option_id !== null)
-                  .map((answer) => answer.user_selected_option_id as bigint),
+                in: quizUserObjectiveAnswers.map(
+                  (answer) => answer.question_id
+                ),
               },
             },
             select: {
               id: true,
-              option_text: true,
+              question_type: true,
             },
           });
 
-          if (!getUserAnswer) {
-            throw new Error("User answers not found");
-          }
+          // Filter multiple choice questions
+          const multipleChoiceQuestions = quizUserObjectiveAnswers.filter(
+            (answer) =>
+              questionTypes.find((q) => Number(q.id) === answer.question_id)
+                ?.question_type === "Multiple Choice"
+          );
 
-          // Update User multiple choice answers if correct
-          const updateUserMultipleChoiceAnswers =
+          // Filter identification questions
+          const identificationQuestions = quizUserObjectiveAnswers.filter(
+            (answer) =>
+              questionTypes.find((q) => Number(q.id) === answer.question_id)
+                ?.question_type === "Identification"
+          );
+
+          // Process multiple choice questions
+          if (multipleChoiceQuestions.length > 0) {
+            const getMultipleChoiceId =
+              await tx.multiple_choice_options.findMany({
+                where: {
+                  objective_question_id: {
+                    in: multipleChoiceQuestions.map(
+                      (answer) => answer.question_id
+                    ),
+                  },
+                  AND: {
+                    option_text: {
+                      in: multipleChoiceQuestions.map(
+                        (answer) => answer.user_answer
+                      ),
+                    },
+                  },
+                },
+                select: {
+                  id: true,
+                  objective_question_id: true,
+                  option_text: true,
+                },
+              });
+
+            // Create user multiple choice answers
+            await tx.user_multiple_choice_answers.createMany({
+              data: multipleChoiceQuestions.map((answer) => ({
+                attempt_id: userQuizAttempt.id,
+                student_id: studentId,
+                question_id: answer.question_id,
+                user_selected_option_id: getMultipleChoiceId.find(
+                  (option) =>
+                    option.option_text === answer.user_answer &&
+                    Number(option.objective_question_id) === answer.question_id
+                )?.id,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+              })),
+            });
+
+            // update user multiple choice answers if it is correct
             await tx.user_multiple_choice_answers.updateMany({
               where: {
                 attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  multiple_choice_options: {
-                    objective_questions: {
-                      quiz_id: quizId,
-                      correct_answer: {
-                        in: getUserAnswer.map((answer) => answer.option_text),
-                      },
-                    },
+                student_id: studentId,
+                question_id: {
+                  in: multipleChoiceQuestions.map(
+                    (answer) => answer.question_id
+                  ),
+                },
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+                objective_questions: {
+                  correct_answer: {
+                    in: multipleChoiceQuestions.map(
+                      (answer) => answer.user_answer
+                    ),
                   },
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
                 },
               },
               data: {
                 is_correct: true,
               },
             });
-
-          if (!updateUserMultipleChoiceAnswers) {
-            throw new Error("Failed to update user multiple choice answers");
           }
 
-          // Get user correct answers
-          const userCorrectAnswers =
+          // Process identification questions
+          if (identificationQuestions.length > 0) {
+            // Get correct answers for identification questions
+            const identificationAnswers = await tx.objective_questions.findMany(
+              {
+                where: {
+                  id: {
+                    in: identificationQuestions.map((q) => q.question_id),
+                  },
+                },
+                select: {
+                  id: true,
+                  correct_answer: true,
+                },
+              }
+            );
+
+            // Create user identification answers
+            await tx.user_identification_answers.createMany({
+              data: identificationQuestions.map((answer) => ({
+                attempt_id: userQuizAttempt.id,
+                student_id: studentId,
+                question_id: answer.question_id,
+                user_answer: answer.user_answer,
+                is_correct:
+                  identificationAnswers
+                    .find((q) => Number(q.id) === answer.question_id)
+                    ?.correct_answer?.toLowerCase() ===
+                  answer.user_answer.toLowerCase(),
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
+              })),
+            });
+          }
+
+          // Calculate total score
+          const userMultipleChoiceAnswers =
             await tx.user_multiple_choice_answers.findMany({
               where: {
                 attempt_id: userQuizAttempt.id,
-                AND: {
-                  student_id: studentId,
-                  attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
-                },
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
-
               select: {
                 is_correct: true,
               },
             });
 
-          if (!userCorrectAnswers) {
-            throw new Error("User correct answers not found");
-          }
-
-          if (!userQuizAttempt.start_time) {
-            throw new Error("Quiz attempt not started");
-          }
-
-          const userScore = await tx.user_quiz_attempts.create({
-            data: {
-              quiz_id: quizId,
-              student_id: studentId,
-              score: userCorrectAnswers.filter((answer) => answer.is_correct)
-                .length,
-              completed_at: new Date(),
-              timeTaken: new Date(
-                new Date().getTime() - userQuizAttempt.start_time.getTime()
-              ),
-              attempt_count:
-                (await tx.user_quiz_attempts.count({
-                  where: {
-                    student_id: studentId,
-                    quiz_id: quizId,
-                  },
-                })) + 1,
-            },
-          });
-
-          if (!userScore) {
-            throw new Error("Failed to submit quiz attempt");
-          }
-
-          const userExistingCompletedQuizzes =
-            await tx.user_completed_quizzes.findFirst({
+          const userIdentificationAnswers =
+            await tx.user_identification_answers.findMany({
               where: {
-                student_id: userQuizAttempt.student_id,
-                quiz_id: userQuizAttempt.quiz_id,
+                attempt_id: userQuizAttempt.id,
+                attemptNumber: (userQuizAttempt.attempt_count ?? 0) + 1,
               },
               select: {
-                id: true,
+                is_correct: true,
               },
             });
 
-          // Update user completed quizzes and user progress
-          const userCompletedQuizzes = await tx.user_completed_quizzes.upsert({
+          const userAnswers = [
+            ...userMultipleChoiceAnswers,
+            ...userIdentificationAnswers,
+          ];
+
+          // Create user score record
+          await tx.user_quiz_attempts.upsert({
             where: {
-              id: userExistingCompletedQuizzes?.id ?? 0,
-            },
-            update: {
-              completed_at: new Date(),
+              id: userQuizAttempt.id,
             },
             create: {
-              topic_id:
-                (
-                  await tx.quiz.findUnique({
-                    where: {
-                      id: userQuizAttempt.quiz_id,
-                    },
-                    select: {
-                      topic_id: true,
-                    },
-                  })
-                )?.topic_id ?? 0, // Provide a default value or handle appropriately
-              student_id: userQuizAttempt.student_id,
-              quiz_id: userQuizAttempt.quiz_id,
+              quiz_id: quizId,
+              student_id: studentId,
+              score: userAnswers.filter((answer) => answer.is_correct).length,
               completed_at: new Date(),
+              timeTaken: userQuizAttempt.start_time
+                ? new Date(
+                    new Date().getTime() - userQuizAttempt.start_time.getTime()
+                  )
+                : null,
+              attempt_count: (userQuizAttempt.attempt_count ?? 0) + 1,
+            },
+            update: {
+              score: userAnswers.filter((answer) => answer.is_correct).length,
+              completed_at: new Date(),
+              attempt_count: (userQuizAttempt.attempt_count ?? 0) + 1,
             },
           });
 
-          if (!userCompletedQuizzes) {
-            throw new Error("Failed to update user completed quizzes");
-          }
-
-          const userProgressSet = await tx.user_progress.upsert({
+          // Update user progress
+          await tx.user_progress.upsert({
             where: {
               student_id: studentId,
             },
@@ -684,23 +661,18 @@ export const submitQuizAttempt = async (
               curr_quiz_id: quizId,
             },
           });
-
-          if (!userProgressSet) {
-            throw new Error("Error setting user progress");
-          }
 
           return { message: "Quiz attempt submitted successfully" };
         },
         {
-          timeout: 15000, // 15 seconds
-          maxWait: 5000, // 5 seconds
+          timeout: 15000,
+          maxWait: 5000,
         }
       );
 
-      if (resultTransaction) {
-        resolve(resultTransaction);
-      }
+      resolve(resultTransaction);
     } catch (error: any) {
+      console.error(error);
       reject(new Error("Failed to submit quiz attempt: " + error.message));
     }
   });

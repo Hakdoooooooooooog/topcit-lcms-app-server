@@ -99,9 +99,9 @@ export const TopicQuizAssessments = async (req: Request, res: Response) => {
   }
 
   try {
-    const chapter = await getQuizAssessments();
+    const chapterQuizzes = await getQuizAssessments();
 
-    res.status(200).json(serializeBigInt(chapter));
+    res.status(200).json(serializeBigInt(chapterQuizzes));
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -277,7 +277,7 @@ export const StartQuiz = async (req: Request, res: Response) => {
           new Date()
         );
 
-        res.status(200).json({ message: "Quiz attempt started" });
+        res.status(200).json({ message: "Quiz attempt started." });
       } catch (error: any) {
         res.status(500).json({ message: error.message });
       }
@@ -288,7 +288,7 @@ export const StartQuiz = async (req: Request, res: Response) => {
 export const SubmitQuiz = async (req: Request, res: Response) => {
   const { topicId, quizId } = req.params;
   const { studentId, isAuth } = req.query;
-  const assessmentData: { [quizID: string]: string } = req.body;
+  const assessmentData: { [questionId: string]: string } = req.body;
 
   if (!topicId || !studentId || !quizId || !isAuth) {
     res.status(400).json({ message: "Invalid request" });
