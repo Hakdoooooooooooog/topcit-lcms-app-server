@@ -108,24 +108,29 @@ export const TopicQuizAssessments = async (req: Request, res: Response) => {
 };
 
 export const UpdateQuiz = async (req: Request, res: Response) => {
-  const { topicId, chapterId, quizTitle, maxAttempts, quizQuestions } =
-    req.body;
+  const {
+    topicId,
+    quizId,
+    chapterSelect,
+    quizTitle,
+    maxAttempts,
+    quizQuestions,
+  } = req.body;
   const { isAuth, studentId } = req.query;
 
   if (
-    !topicId ||
-    !chapterId ||
-    !quizTitle ||
-    !quizQuestions ||
-    !isAuth ||
-    !studentId ||
+    !topicId &&
+    !quizId &&
+    !chapterSelect &&
+    !quizTitle &&
+    !quizQuestions &&
     !maxAttempts
   ) {
     res.status(400).json({ message: "Invalid request" });
     return;
   }
 
-  if (isAuth !== "true") {
+  if (isAuth !== "true" || !studentId) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
@@ -154,15 +159,13 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
       topics: {
         topicId: parseInt(topicId),
       },
-      chapterId: parseInt(chapterId),
+      chapterSelect,
       quizId: parseInt(quizQuestionCorrectAnswer[0].quizId),
       title: quizTitle,
       maxAttempts: parseInt(maxAttempts),
       objectiveQuestions: quizQuestionCorrectAnswer,
     };
-
-    console.log("Update Quiz: ", quizDetails);
-    // await editQuiz(quizDetails);
+    await editQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz updated" });
   } catch (error: any) {
@@ -171,13 +174,20 @@ export const UpdateQuiz = async (req: Request, res: Response) => {
 };
 
 export const CreateQuiz = async (req: Request, res: Response) => {
-  const { topicId, chapterId, quizTitle, maxAttempts, quizQuestions } =
-    req.body;
+  const {
+    topicId,
+    quizId,
+    chapterSelect,
+    quizTitle,
+    maxAttempts,
+    quizQuestions,
+  } = req.body;
   const { isAuth, studentId } = req.query;
 
   if (
     !topicId ||
-    !chapterId ||
+    !quizId ||
+    !chapterSelect ||
     !quizTitle ||
     !quizQuestions ||
     !isAuth ||
@@ -211,15 +221,11 @@ export const CreateQuiz = async (req: Request, res: Response) => {
     return question;
   });
 
-  // Get Quiz id from the first question
-
-  const quizId = quizQuestionCorrectAnswer[0].quizId;
-
   const quizDetails: QuizDetails = {
     topics: {
       topicId: parseInt(topicId),
     },
-    chapterId: parseInt(chapterId),
+    chapterId: parseInt(chapterSelect),
     quizId: parseInt(quizId),
     title: quizTitle,
     maxAttempts: parseInt(maxAttempts),
@@ -228,9 +234,7 @@ export const CreateQuiz = async (req: Request, res: Response) => {
 
   try {
     // Insert quiz
-
-    console.log("Create Quiz: ", quizDetails);
-    // await createQuiz(quizDetails);
+    await createQuiz(quizDetails);
 
     res.status(200).json({ message: "Quiz created/updated" });
   } catch (error: any) {

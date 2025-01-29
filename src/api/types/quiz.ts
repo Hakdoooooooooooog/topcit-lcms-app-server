@@ -35,7 +35,8 @@ export type QuizDetails = {
     topicId: number;
   };
   quizId?: number;
-  chapterId: number;
+  chapterSelect?: string;
+  chapterId?: number;
   title: string;
   quizType?: string | null;
   maxAttempts: number;

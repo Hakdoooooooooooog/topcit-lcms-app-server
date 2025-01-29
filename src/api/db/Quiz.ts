@@ -241,61 +241,92 @@ export const createQuiz = async (
   return new Promise(async (resolve, reject) => {
     try {
       const createQuiz = await prisma.$transaction(async (tx) => {
-        const createdQuiz = await tx.quiz.create({
-          data: {
-            topic_id: quizDetails.topics.topicId,
-            chapter_id: quizDetails.chapterId ?? 0,
-            title: quizDetails.title,
-            quiz_type: quizDetails.quizType ?? "objective",
-            max_attempts: quizDetails.maxAttempts,
-            created_at: new Date(),
-          },
-          select: {
-            id: true,
-          },
-        });
+        const questionTypes = quizDetails.objectiveQuestions.map(
+          (question) => question.questionType
+        );
 
-        await tx.objective_questions.createMany({
-          data: quizDetails.objectiveQuestions.map((question) => {
-            return {
-              quiz_id: createdQuiz.id,
-              question: question.question,
-              question_type: question.questionType,
-              correct_answer: question.correctAnswer,
-            };
-          }),
-        });
+        if (questionTypes.includes("Multiple Choice")) {
+          const createdQuiz = await tx.quiz.create({
+            data: {
+              topic_id: quizDetails.topics.topicId,
+              chapter_id: quizDetails.chapterId ?? 0,
+              title: quizDetails.title,
+              quiz_type: quizDetails.quizType ?? "objective",
+              max_attempts: quizDetails.maxAttempts,
+              created_at: new Date(),
+            },
+            select: {
+              id: true,
+            },
+          });
 
-        const objectiveQuestions = await tx.objective_questions.findMany({
-          where: {
-            quiz_id: createdQuiz.id,
-          },
-          select: {
-            id: true,
-            question: true,
-          },
-        });
-
-        await tx.multiple_choice_options.createMany({
-          data: quizDetails.objectiveQuestions.flatMap((question) => {
-            const objectiveQuestion = objectiveQuestions.find(
-              (oq) => oq.question === question.question
-            );
-
-            if (!objectiveQuestion) {
-              throw new Error(
-                `Objective question not found for question: ${question.question}`
-              );
-            }
-
-            return question.multipleChoiceOptions.map((option) => {
+          await tx.objective_questions.createMany({
+            data: quizDetails.objectiveQuestions.map((question) => {
               return {
-                objective_question_id: objectiveQuestion.id,
-                option_text: option.optionText,
+                quiz_id: createdQuiz.id,
+                question: question.question,
+                question_type: question.questionType,
+                correct_answer: question.correctAnswer,
               };
-            });
-          }),
-        });
+            }),
+          });
+
+          const objectiveQuestions = await tx.objective_questions.findMany({
+            where: {
+              quiz_id: createdQuiz.id,
+            },
+            select: {
+              id: true,
+              question: true,
+            },
+          });
+
+          await tx.multiple_choice_options.createMany({
+            data: quizDetails.objectiveQuestions.flatMap((question) => {
+              const objectiveQuestion = objectiveQuestions.find(
+                (oq) => oq.question === question.question
+              );
+
+              if (!objectiveQuestion) {
+                throw new Error(
+                  `Objective question not found for question: ${question.question}`
+                );
+              }
+
+              return question.multipleChoiceOptions.map((option) => {
+                return {
+                  objective_question_id: objectiveQuestion.id,
+                  option_text: option.optionText,
+                };
+              });
+            }),
+          });
+        } else {
+          const createdQuiz = await tx.quiz.create({
+            data: {
+              topic_id: quizDetails.topics.topicId,
+              chapter_id: quizDetails.chapterId ?? 0,
+              title: quizDetails.title,
+              quiz_type: quizDetails.quizType ?? "objective",
+              max_attempts: quizDetails.maxAttempts,
+              created_at: new Date(),
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          await tx.objective_questions.createMany({
+            data: quizDetails.objectiveQuestions.map((question) => {
+              return {
+                quiz_id: createdQuiz.id,
+                question: question.question,
+                question_type: question.questionType,
+                correct_answer: question.correctAnswer,
+              };
+            }),
+          });
+        }
 
         return { message: "Quiz created/updated successfully." };
       });
@@ -313,50 +344,142 @@ export const editQuiz = async (
 ): Promise<{ message: string }> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const editQuiz = await prisma.$transaction(async (tx) => {
-        await tx.quiz.update({
-          where: {
-            id: quizDetails.quizId,
-          },
-          data: {
-            title: quizDetails.title,
-            quiz_type: quizDetails.quizType ?? "objective",
-            max_attempts: quizDetails.maxAttempts,
-            objective_questions: {
-              updateMany: quizDetails.objectiveQuestions.map((question) => {
-                return {
+      const editQuiz = await prisma.$transaction(
+        async (tx) => {
+          const chapterId = await tx.chapters.findFirst({
+            where: {
+              title: quizDetails.chapterSelect,
+            },
+            select: {
+              id: true,
+            },
+          });
+
+          for (const question of quizDetails.objectiveQuestions) {
+            if (question.questionType === "Multiple Choice") {
+              question.multipleChoiceOptions.forEach((option) => {
+                if (!option.optionText) {
+                  throw new Error("Option text is required");
+                }
+              });
+
+              await tx.quiz.update({
+                where: {
+                  id: quizDetails.quizId,
+                  AND: {
+                    topic_id: quizDetails.topics.topicId,
+                    chapter_id: chapterId?.id ?? 0,
+                  },
+                },
+                data: {
+                  title: quizDetails.title,
+                  quiz_type: quizDetails.quizType ?? "objective",
+                  max_attempts: quizDetails.maxAttempts,
+                  objective_questions: {
+                    updateMany: quizDetails.objectiveQuestions.map(
+                      (question) => {
+                        return {
+                          where: {
+                            quiz_id: quizDetails.quizId,
+                            question: question.question,
+                          },
+                          data: {
+                            question_type: question.questionType,
+                            correct_answer: question.correctAnswer,
+                          },
+                        };
+                      }
+                    ),
+                  },
+                },
+              });
+
+              for (const question of quizDetails.objectiveQuestions) {
+                const objectiveQuestion =
+                  await tx.objective_questions.findFirst({
+                    where: {
+                      quiz_id: quizDetails.quizId,
+                      question: question.question,
+                    },
+                  });
+
+                if (objectiveQuestion) {
+                  if (question.multipleChoiceOptions) {
+                    for (const option of question.multipleChoiceOptions) {
+                      await tx.multiple_choice_options.create({
+                        data: {
+                          objective_question_id: objectiveQuestion.id,
+                          option_text: option.optionText,
+                        },
+                      });
+                    }
+                  }
+                }
+              }
+            } else {
+              // delete multiple choice options if question type is not multiple choice
+
+              const objectiveQuestionId =
+                await tx.objective_questions.findFirst({
                   where: {
                     quiz_id: quizDetails.quizId,
                     question: question.question,
                   },
-                  data: {
-                    question_type: question.questionType,
-                    correct_answer: question.correctAnswer,
+                  select: {
+                    id: true,
                   },
-                };
-              }),
-            },
-          },
-        });
+                });
 
-        await tx.multiple_choice_options.updateMany({
-          where: {
-            objective_question_id: {
-              in: quizDetails.objectiveQuestions.map((_question) =>
-                BigInt(quizDetails.quizId ?? 0)
-              ),
-            },
-          },
-          data: {
-            option_text: quizDetails.objectiveQuestions
-              .flatMap((question) => question.multipleChoiceOptions)
-              .map((option) => option.optionText)
-              .join(", "),
-          },
-        });
+              if (!objectiveQuestionId) {
+                throw new Error("Objective question not found");
+              }
 
-        return { message: "Quiz updated successfully." };
-      });
+              await tx.multiple_choice_options.deleteMany({
+                where: {
+                  objective_question_id: objectiveQuestionId.id,
+                },
+              });
+
+              await tx.quiz.update({
+                where: {
+                  id: quizDetails.quizId,
+                  AND: {
+                    topic_id: quizDetails.topics.topicId,
+                    chapter_id: chapterId?.id ?? 0,
+                  },
+                },
+                data: {
+                  title: quizDetails.title,
+                  quiz_type: quizDetails.quizType ?? "objective",
+                  max_attempts: quizDetails.maxAttempts,
+                  objective_questions: {
+                    updateMany: quizDetails.objectiveQuestions.map(
+                      (question) => {
+                        return {
+                          where: {
+                            quiz_id: quizDetails.quizId,
+                            question: question.question,
+                          },
+                          data: {
+                            question_type: question.questionType,
+                            correct_answer: question.correctAnswer,
+                          },
+                        };
+                      }
+                    ),
+                  },
+                },
+              });
+            }
+          }
+
+          return { message: "Quiz updated successfully." };
+        },
+        {
+          timeout: 15000,
+          maxWait: 5000,
+        }
+      );
 
       resolve(editQuiz);
     } catch (error: any) {
